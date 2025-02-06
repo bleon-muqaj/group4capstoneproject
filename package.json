@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
     "cra-template": "1.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "web-vitals": "^4.2.4"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -35,6 +37,10 @@
   "devDependencies": {
     "@babel/core": "^7.26.7",
     "@babel/preset-react": "^7.26.3",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^14.6.1",
     "babel-loader": "^9.2.1"
   }
 }
