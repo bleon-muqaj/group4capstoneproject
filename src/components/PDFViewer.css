@@ -1,0 +1,17 @@
+.viewer-dialog {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.2);
+    border-style: none;
+}
+
+.viewer-dialog:not([open]) {
+    display: none;
+}
+
+.close-button {
+    width: 50px;
+    margin-bottom: 10px;
+}
