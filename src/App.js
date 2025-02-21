@@ -1,21 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Header from './components/Header';
 import Editor from './components/Editor';
+import PDFViewer from './components/PDFViewer';
 import './App.css';
 
 function App() {
+    const [isPdfOpen, setIsPdfOpen] = useState(false);
+    const [lastViewedPage, setLastViewedPage] = useState(1);
+
     return (
         <div className="App">
             <Header />
             <div className="main-content">
-                <div className="editor-container">
-                    <Editor />
-                </div>
-                <div className="right-panel">
-                    {/* here should be like register stuff */}
-                    <p>Right side</p>
-                </div>
+                <Editor onPdfOpen={(page) => {
+                    setLastViewedPage(page || lastViewedPage);
+                    setIsPdfOpen(true);
+                }} />
             </div>
+
+            {isPdfOpen && (
+                <PDFViewer
+                    onClose={() => setIsPdfOpen(false)}
+                    initialPage={lastViewedPage}
+                    onPageChange={setLastViewedPage}
+                />
+            )}
         </div>
     );
 }
