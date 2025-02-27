@@ -227,6 +227,55 @@ function Editor({ onPdfOpen }) {
     }, [docs]);
 
     function editorMount(editor, monaco) {
+
+        monaco.languages.register({ id: "mips" });
+
+        monaco.languages.setMonarchTokensProvider("mips", {
+            tokenizer: {
+                root: [
+                    [/\b(?:add|addi|sub|lw|sw|beq|bne|j|jr|jal|li|la|move|syscall)\b/, "keyword"],
+                    [/\b(?:\$zero|\$t[0-9]|\$s[0-9]|\$a[0-3]|\$v[01]|\$sp|\$fp|\$ra)\b/, "variable"],
+                    [/#[^\n]*/, "comment"],
+                    [/"([^"\\]|\\.)*"/, "string"],
+                    [/\b\d+\b/, "number"],
+                ],
+            },
+        });
+
+        const validInstructions = new Set([
+            "add", "addi", "sub", "lw", "sw", "beq", "bne", "j", "jr", "jal", "li", "la", "move", "syscall", ""
+        ]);
+
+        function validateCode() {
+            const model = editor.getModel();
+            if (!model) return;
+
+            const text = model.getValue();
+            const errors = [];
+
+            const lines = text.split("\n");
+            lines.forEach((line, index) => {
+                const tokens = line.trim().split(/\s+/);
+                if (tokens.length > 0 && !validInstructions.has(tokens[0])) {
+                    errors.push({
+                        startLineNumber: index + 1,
+                        startColumn: 1,
+                        endLineNumber: index + 1,
+                        endColumn: tokens[0].length + 1,
+                        message: `"${tokens[0]}" is not a valid MIPS instruction.`,
+                        severity: monaco.MarkerSeverity.Error,
+                    });
+                }
+            });
+
+            monaco.editor.setModelMarkers(model, "mips", errors);
+        }
+
+        editor.onDidChangeModelContent(validateCode);
+
+        validateCode();
+
+
         monaco.languages.registerHoverProvider('mips', {
             provideHover: function(model, pos) {
                 const token = model.getWordAtPosition(pos);
