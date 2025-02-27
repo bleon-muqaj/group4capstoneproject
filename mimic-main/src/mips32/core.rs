@@ -20,6 +20,9 @@ impl Core {
             lo: 0,
         }
     }
+    pub fn read_memory(&self, addr: u32) -> Result<u32, MimicError> {
+        self.memory.get(addr)
+    }
 
     pub fn tick<F>(&mut self, syscall_handler: F) -> Result<(), MimicError>
     where
