@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import MonacoEditor from '@monaco-editor/react';
+import RegisterDisplay from "./RegisterDisplay";
 
 const instructionDetails = {
     add: {//not implemented in mimic
@@ -210,18 +211,20 @@ function getStoredDocs() {
         try {
             return JSON.parse(stored);
         } catch (err) {
-            return [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }];
+            return [{name: 'Untitled.asm', content: '.data\n\n.text\n'}];
         }
     }
-    return [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }];
+    return [{name: 'Untitled.asm', content: '.data\n\n.text\n'}];
 }
 
-function Editor({ onPdfOpen }) {
+function Editor({onPdfOpen}) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [editingDoc, setEditingDoc] = useState(-1);
     const [docRename, setDocRename] = useState('');
     const [output, setOutput] = useState('');
+    const [currentTab, setCurrentTab] = useState('editor');
+    const [registerValues, setRegisterValues] = useState(null);
 
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
@@ -229,7 +232,7 @@ function Editor({ onPdfOpen }) {
 
     function editorMount(editor, monaco) {
         monaco.languages.registerHoverProvider('mips', {
-            provideHover: function(model, pos) {
+            provideHover: function (model, pos) {
                 const token = model.getWordAtPosition(pos);
                 if (token) {
                     const key = token.word.toLowerCase();
@@ -237,10 +240,10 @@ function Editor({ onPdfOpen }) {
                     if (detail) {
                         return {
                             contents: [
-                                { value: '**' + token.word + '**' },
-                                { value: 'Usage: `' + detail.usage + '`' },
-                                { value: 'Description: ' + detail.description },
-                                { value: 'Page: ' + (detail.pdfPage || 1) }
+                                {value: '**' + token.word + '**'},
+                                {value: 'Usage: `' + detail.usage + '`'},
+                                {value: 'Description: ' + detail.description},
+                                {value: 'Page: ' + (detail.pdfPage || 1)}
                             ]
                         };
                     }
@@ -254,7 +257,7 @@ function Editor({ onPdfOpen }) {
             label: 'Open Instruction Manual',
             contextMenuGroupId: 'navigation',
             contextMenuOrder: 1,
-            run: function(ed) {
+            run: function (ed) {
                 const pos = ed.getPosition();
                 const token = ed.getModel().getWordAtPosition(pos);
                 if (token) {
@@ -278,7 +281,7 @@ function Editor({ onPdfOpen }) {
     }
 
     function createDoc() {
-        const newDoc = { name: 'File' + (docs.length + 1) + '.asm', content: '.data\n\n.text\n' };
+        const newDoc = {name: 'File' + (docs.length + 1) + '.asm', content: '.data\n\n.text\n'};
         const updatedDocs = docs.slice();
         updatedDocs.push(newDoc);
         setDocs(updatedDocs);
@@ -290,7 +293,7 @@ function Editor({ onPdfOpen }) {
             const updatedDocs = docs.slice();
             updatedDocs.splice(index, 1);
             if (updatedDocs.length === 0) {
-                updatedDocs.push({ name: 'Untitled.asm', content: '.data\n\n.text\n' });
+                updatedDocs.push({name: 'Untitled.asm', content: '.data\n\n.text\n'});
                 setCurrentDoc(0);
             } else if (currentDoc >= updatedDocs.length) {
                 setCurrentDoc(updatedDocs.length - 1);
@@ -303,8 +306,8 @@ function Editor({ onPdfOpen }) {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(ev) {
-                const newDoc = { name: file.name, content: ev.target.result };
+            reader.onload = function (ev) {
+                const newDoc = {name: file.name, content: ev.target.result};
                 const updatedDocs = docs.slice();
                 updatedDocs.push(newDoc);
                 setDocs(updatedDocs);
@@ -316,7 +319,7 @@ function Editor({ onPdfOpen }) {
 
     function handleExport() {
         const current = docs[currentDoc];
-        const blob = new Blob([current.content], { type: 'text/plain' });
+        const blob = new Blob([current.content], {type: 'text/plain'});
         const fileURL = URL.createObjectURL(blob);
         const aLink = document.createElement('a');
         aLink.href = fileURL;
@@ -347,6 +350,11 @@ function Editor({ onPdfOpen }) {
         setDocRename('');
     }
 
+    function handleTabChange() {
+        if (currentTab === 'editor') setCurrentTab('registers')
+        else setCurrentTab('editor');
+    }
+
     // runCode function remains unchanged.
     async function runCode() {
         const currentCode = docs[currentDoc].content;
@@ -356,7 +364,7 @@ function Editor({ onPdfOpen }) {
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ code: currentCode })
+                body: JSON.stringify({code: currentCode})
             });
             const data = await response.json();
             let outputText = "";
@@ -377,6 +385,8 @@ function Editor({ onPdfOpen }) {
                 data.register_dump.forEach((reg, index) => {
                     outputText += `$${index}: ${reg}\n`;
                 });
+                console.log(data.register_dump);
+                setRegisterValues(data.register_dump);
             }
             setOutput(outputText);
         } catch (error) {
@@ -385,41 +395,56 @@ function Editor({ onPdfOpen }) {
         }
     }
 
+    function selectDoc(i) {
+        setCurrentDoc(i);
+        setCurrentTab('editor');
+    }
+
     let docButtons = [];
     for (let i = 0; i < docs.length; i++) {
         const isEditing = i === editingDoc;
         const btnContent = isEditing ? (
             <>
-                <input value={docRename} onChange={e => setDocRename(e.target.value)} style={{ marginRight: '2px' }}/>
+                <input value={docRename} onChange={e => setDocRename(e.target.value)} style={{marginRight: '2px'}}/>
                 <button onClick={commitRename}>OK</button>
                 <button onClick={cancelRename}>Cancel</button>
             </>
         ) : (
             <>
-                <button onClick={() => setCurrentDoc(i)}>{docs[i].name}</button>
+                <button onClick={() => selectDoc(i)}>{docs[i].name}</button>
                 <button onClick={() => removeDoc(i)}>x</button>
                 <button onClick={() => initiateRename(i)}>rename</button>
             </>
         );
-        docButtons.push(<span key={i} style={{ marginRight: '4px' }}>{btnContent}</span>);
+        docButtons.push(<span key={i} style={{marginRight: '4px'}}>{btnContent}</span>);
     }
 
     return (
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', width: "100%" }}>
-            <div style={{ background: '#333', padding: '8px' }}>
+        <div style={{
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            width: "100%"
+        }}>
+            <div style={{background: '#333', padding: '8px'}}>
                 {docButtons}
                 <button onClick={createDoc}>New File</button>
                 <button onClick={runCode}>Run</button>
                 <button>
-                    <label style={{ marginLeft: '8px', cursor: 'pointer' }}>
+                    <label style={{marginLeft: '8px', cursor: 'pointer'}}>
                         Import
-                        <input type="file" accept=".asm" onChange={handleImport} style={{ display: 'none' }} />
+                        <input type="file" accept=".asm" onChange={handleImport} style={{display: 'none'}}/>
                     </label>
                 </button>
-                <button onClick={handleExport} style={{ marginLeft: '8px' }}>Export</button>
+                <button onClick={handleExport} style={{marginLeft: '8px'}}>Export</button>
+                <button onClick={handleTabChange}>{currentTab === 'editor' ? 'View Registers' : 'View Editor'}</button>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'row' }}>
-                <div style={{ flex: 1 }}>
+            <div style={{
+                flex: 1,
+                display: currentTab === 'editor' ? 'flex' : 'none',
+                flexDirection: 'row'
+            }}>
+                <div style={{flex: 1}}>
                     <MonacoEditor
                         height="100%"
                         width="100%"
@@ -428,13 +453,30 @@ function Editor({ onPdfOpen }) {
                         value={docs[currentDoc].content}
                         onMount={editorMount}
                         onChange={editorChange}
-                        options={{ automaticLayout: true }}
+                        options={{automaticLayout: true}}
                     />
                 </div>
-                <div style={{ width: '400px', background: 'black', color: 'white', padding: '8px', fontFamily: 'monospace', overflowY: 'auto' }}>
-                    <h3 style={{ margin: '0 0 8px 0' }}>Console Output:</h3>
-                    <pre style={{ margin: 0 }}>{output}</pre>
+                <div style={{
+                    width: '400px',
+                    background: 'black',
+                    color: 'white',
+                    padding: '8px',
+                    fontFamily: 'monospace',
+                    overflowY: 'auto'
+                }}>
+                    <h3 style={{margin: '0 0 8px 0'}}>Console Output:</h3>
+                    <pre style={{margin: 0}}>{output}</pre>
                 </div>
+            </div>
+            <div style={{
+                display: currentTab === 'registers' ? 'flex' : 'none',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center'
+            }}>
+                {registerValues ? <RegisterDisplay registerValues={registerValues}/> :
+                    // registerValues is null (user has not run their code)
+                    <p> Assemble your code to view register values.</p>}
             </div>
         </div>
     );
