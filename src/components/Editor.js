@@ -205,6 +205,11 @@ const instructionDetails = {
     }
 };
 
+// passed into RegisterDisplay if the user has not run their code
+const dummyRegisterValues = new Array(32).fill(0);
+// $sp register initial value
+dummyRegisterValues[29] = 2147479548;
+
 function getStoredDocs() {
     const stored = localStorage.getItem('files');
     if (stored) {
@@ -474,9 +479,7 @@ function Editor({onPdfOpen}) {
                 justifyContent: 'center',
                 alignItems: 'center'
             }}>
-                {registerValues ? <RegisterDisplay registerValues={registerValues}/> :
-                    // registerValues is null (user has not run their code)
-                    <p> Assemble your code to view register values.</p>}
+                <RegisterDisplay registerValues={registerValues ? registerValues : dummyRegisterValues}/>
             </div>
         </div>
     );
