@@ -205,10 +205,9 @@ const instructionDetails = {
     }
 };
 
-// passed into RegisterDisplay if the user has not run their code
-const dummyRegisterValues = new Array(32).fill(0);
+const initialRegisterValues = new Array(32).fill(0);
 // $sp register initial value
-dummyRegisterValues[29] = 2147479548;
+initialRegisterValues[29] = 2147479548;
 
 function getStoredDocs() {
     const stored = localStorage.getItem('files');
@@ -229,7 +228,7 @@ function Editor({onPdfOpen}) {
     const [docRename, setDocRename] = useState('');
     const [output, setOutput] = useState('');
     const [currentTab, setCurrentTab] = useState('editor');
-    const [registerValues, setRegisterValues] = useState(null);
+    const [registerValues, setRegisterValues] = useState(initialRegisterValues);
 
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
@@ -390,7 +389,6 @@ function Editor({onPdfOpen}) {
                 data.register_dump.forEach((reg, index) => {
                     outputText += `$${index}: ${reg}\n`;
                 });
-                console.log(data.register_dump);
                 setRegisterValues(data.register_dump);
             }
             setOutput(outputText);
@@ -479,7 +477,7 @@ function Editor({onPdfOpen}) {
                 justifyContent: 'center',
                 alignItems: 'center'
             }}>
-                <RegisterDisplay registerValues={registerValues ? registerValues : dummyRegisterValues}/>
+                <RegisterDisplay registerValues={registerValues}/>
             </div>
         </div>
     );
