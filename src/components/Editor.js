@@ -228,12 +228,25 @@ function Editor({ onPdfOpen }) {
 
     function editorMount(editor, monaco) {
         const validInstructions = new Set([
-            "add", "addi", "sub", "lw", "sw", "beq", "bne", "j", "jr", "jal", "li", "la", "move", "syscall", ""
+            "add", "addu", "sub", "subu", "and", "or", "xor", "nor", "slt", "sltu",
+            "addi", "addiu", "andi", "ori", "xori", "lui", "sll", "srl", "sra",
+            "sllv", "srlv", "srav", "beq", "bne", "blez", "bgtz", "bltz", "bgez",
+            "j", "jal", "jr", "jalr", "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw",
+            "li", "la", "move", "syscall", "", "msg:"
         ]);
         const validAnnotation = new Set([
-            ".data", ".text"
+            ".data", ".text",
         ]);
-
+        const validRegisters = new Set([
+            "$zero", "$at",
+            "$v0", "$v1",
+            "$a0", "$a1", "$a2", "$a3",
+            "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7",
+            "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7",
+            "$t8", "$t9",
+            "$k0", "$k1",
+            "$gp", "$sp", "$fp", "$ra"
+        ]);
 
         function validateCode() {
             const model = editor.getModel();
@@ -249,17 +262,44 @@ function Editor({ onPdfOpen }) {
                 const tokens = line.trim().split(/\s+/);
                 const match = line.match(/^\s*/);
                 const startColumn = (match ? match[0].length : 0) + 1;
-
+                let position = startColumn; // Track position in line
 
                 if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotation.has(tokens[0])) {
+                    if (tokens[0] === "#") {
+                        return;
+                    }
                     errors.push({
                         startLineNumber: index + 1,
                         startColumn: startColumn,
                         endLineNumber: index + 1,
-                        endColumn: startColumn + tokens[0].length,
+                        endColumn: position + tokens[0].length,
                         message: `"${tokens[0]}" is not a valid MIPS instruction.`,
                         severity: monaco.MarkerSeverity.Error,
                     });
+                }
+
+                // Move position forward after the instruction
+                position += tokens[0].length + 1;
+
+                // Validate registers (removing commas)
+                for (let i = 1; i < tokens.length; i++) {
+                    const register = tokens[i].replace(/,/, "");
+                    if (register === "#") {
+                        return;
+                    }
+                    let startPos = line.indexOf(tokens[i], position - 1) + 1; // Find exact position
+                    let endPos = startPos + tokens[i].length;
+                    if (!validRegisters.has(register)) {
+                        errors.push({
+                            startLineNumber: index + 1,
+                            startColumn: startPos,
+                            endLineNumber: index + 1,
+                            endColumn: endPos,
+                            message: `"${tokens[i]}" is not a valid MIPS Register.`,
+                            severity: monaco.MarkerSeverity.Error,
+                        });
+                    }
+                    position = endPos + 1; // Move to next token position
                 }
             });
 
