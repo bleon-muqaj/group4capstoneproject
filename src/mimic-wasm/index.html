@@ -1,0 +1,100 @@
+<html>
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+</head>
+
+<body>
+<script type="module">
+
+    import init, {Mips32Core, AssemblerResult, assemble_mips32, bytes_to_words} from './pkg';
+
+    async function handle_syscalls(code, regs) {
+        switch (regs[2]) {
+            case 4:
+                console.log("Print String");
+                break;
+
+            case 10:
+                console.log("Exit");
+                break;
+
+            default:
+                console.log("Unknown syscall");
+                break;
+        }
+
+        return regs;
+    }
+
+    async function run() {
+        await init();
+
+        const asm_str = `
+.data
+  hello: .asciiz "Hello World!"
+.text
+  # Print hello
+  li $v0, 4
+  la $a0, hello
+  syscall
+
+  # Exit
+  li $v0, 10
+  syscall
+`
+        const assemble_result = assemble_mips32(asm_str);
+
+        if (assemble_result.failed()) {
+            console.log(assemble_result.error());
+        } else {
+            var text_str = "Text:\n";
+            const text = bytes_to_words(assemble_result.text());
+            for (const i in text) {
+                text_str += text[i].toString(16).padStart(8, '0') + "\n";
+            }
+            console.log(text_str);
+
+            var data_str = "Data:\n";
+            const data = bytes_to_words(assemble_result.data());
+            for (const i in data) {
+                data_str += data[i].toString(16).padStart(8, '0') + "\n";
+            }
+            console.log(data_str);
+        }
+
+        var core = new Mips32Core();
+        core.load_text(assemble_result.text());
+        core.load_data(assemble_result.data());
+
+        var running = true;
+
+        while (running) {
+            // core.tick() returns true if a syscall was called
+            if (core.tick()) {
+                var regs = core.dump_registers();
+                switch (regs[2]) {
+                    case 4:
+                        console.log("Print String");
+                        break;
+
+                    case 10:
+                        console.log("Exit");
+                        running = false;
+                        break;
+
+                    default:
+                        console.log("Unknown syscall");
+                        break;
+                }
+            }
+        }
+
+
+        console.log(core.dump_registers());
+
+    }
+
+    run();
+</script>
+</body>
+</html>

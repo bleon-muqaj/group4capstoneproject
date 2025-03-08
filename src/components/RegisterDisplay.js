@@ -35,7 +35,7 @@ function RegisterDisplay({registerValues}) {
     }
 
     function toHexString(number) {
-        const hexString = number.toString(16);
+        const hexString = (number >>> 0).toString(16);
         return hexString.padStart(8, '0');
     }
 
@@ -49,7 +49,7 @@ function RegisterDisplay({registerValues}) {
             </tr>
             </thead>
             <tbody>
-            {registerValues.map((value, index) =>
+            {[...registerValues].map((value, index) =>
                 <tr>
                     <td style={{border: '1px solid grey'}}>{registerLabels[index]}</td>
                     <td style={{border: '1px solid grey'}}>{index}</td>
