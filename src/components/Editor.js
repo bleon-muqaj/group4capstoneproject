@@ -204,6 +204,76 @@ const instructionDetails = {
     }
 };
 
+//Checks for typos on in instructions from instructionDetails
+function spellCheckInstructions(editor, monaco, instructionDetails) {
+    const model = editor.getModel();
+    if (!model) return;
+
+    const text = model.getValue();
+    const lines = text.split('\n');
+    const markers = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+
+
+        if (!line) {
+            continue;
+        }
+
+        //tokenizes each instruction based on new line
+        let tokens = line.split(/\s+/);
+
+
+        if (tokens[0].endsWith(':')) {
+            tokens.shift();
+        }
+
+
+        if (!tokens.length) {
+            continue;
+        }
+
+        // token doesnt spellcheck . commands
+        if (tokens[0].startsWith('.')) {
+            continue;
+        }
+
+
+        let maybeInstruction = tokens[0];
+
+
+        if (maybeInstruction.endsWith(',')) {
+            maybeInstruction = maybeInstruction.slice(0, -1);
+        }
+
+        // Check if it exists in instructionDetails
+        const lowerInst = maybeInstruction.toLowerCase();
+        if (!instructionDetails[lowerInst]) {
+            // Not recognized => create a marker
+            const colStart = lines[i].indexOf(tokens[0]) + 1;
+            const colEnd = colStart + tokens[0].length;
+
+            markers.push({
+                startLineNumber: i + 1,
+                startColumn: colStart,
+                endLineNumber: i + 1,
+                endColumn: colEnd,
+                message: `'${maybeInstruction}' is not a recognized instruction.`,
+                severity: monaco.MarkerSeverity.Error
+            });
+        }
+    }
+
+    // Apply error markers
+    monaco.editor.setModelMarkers(model, 'spellChecker', markers);
+}
+
+
+
+//TESTTESTETST--
+
+
 function getStoredDocs() {
     const stored = localStorage.getItem('files');
     if (stored) {
@@ -223,11 +293,19 @@ function Editor({ onPdfOpen }) {
     const [docRename, setDocRename] = useState('');
     const [output, setOutput] = useState('');
 
+    // reference to be called in editorChange
+    const monacoRef = React.useRef(null);
+    const editorRef = React.useRef(null);
+
+
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
     }, [docs]);
 
     function editorMount(editor, monaco) {
+        editorRef.current = editor;
+        monacoRef.current = monaco;
+
         monaco.languages.registerHoverProvider('mips', {
             provideHover: function(model, pos) {
                 const token = model.getWordAtPosition(pos);
@@ -269,12 +347,20 @@ function Editor({ onPdfOpen }) {
                 }
             }
         });
+
+
+        spellCheckInstructions(editor, monaco, instructionDetails);//spell check line
     }
 
     function editorChange(newContent) {
         const updatedDocs = docs.slice();
         updatedDocs[currentDoc].content = newContent;
         setDocs(updatedDocs);
+
+        if (editorRef.current && monacoRef.current) {
+            spellCheckInstructions(editorRef.current, monacoRef.current, instructionDetails);
+        }//checks every change
+
     }
 
     function createDoc() {
@@ -347,7 +433,7 @@ function Editor({ onPdfOpen }) {
         setDocRename('');
     }
 
-    // runCode function remains unchanged.
+
     async function runCode() {
         const currentCode = docs[currentDoc].content;
         try {
