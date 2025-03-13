@@ -21,6 +21,7 @@ async function run(code, storeRegisterValues, setConsoleOutput, setTextDump, set
         consoleOutput += result.syscall_output || "";
         const newRegisters = result.register_dump || new Array(32).fill(0);
 
+        // Compare old vs new register values
         const changedRegisters = newRegisters.map((val, i) => val !== prevRegisters[i]);
         setChangedRegisters(changedRegisters);
 
@@ -72,6 +73,7 @@ function validateCode(editor, monaco) {
     const errors = [];
 
     lines.forEach((line, index) => {
+        // Skip blank lines (or lines with only whitespace)
         if (line.trim() === "") return;
 
         const tokens = line.trim().split(/\s+/);
@@ -231,6 +233,7 @@ function Editor({ isDarkMode }) {
                 ))}
                 <button onClick={createDoc}>New File</button>
                 <button onClick={runCode}>Run</button>
+                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download .asm</button>
                 <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
                 <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
             </div>
