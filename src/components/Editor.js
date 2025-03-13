@@ -2,35 +2,74 @@ import React, { useState, useEffect } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import RegisterDisplay from "./RegisterDisplay";
 import { instructionDetails } from '../data/instructionDetails';
+import init, {Mips32Core, AssemblerResult, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
 
-const API_URL = "http://127.0.0.1:3030/assemble";
+async function run(currentCode, storeRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+    await init();
 
-async function run(code, storeRegisterValues, setConsoleOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
-    const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code })
-    });
+    const assemble_result = assemble_mips32(currentCode);
 
-    const result = await response.json();
     let consoleOutput = '';
 
-    if (result.errors) {
-        consoleOutput += `Error: ${result.errors}\n`;
+    if (assemble_result.failed()) {
+        console.log(assemble_result.error());
+        consoleOutput += assemble_result.error();
+        setOutput(consoleOutput);
+        return;
     } else {
-        consoleOutput += result.syscall_output || "";
-        const newRegisters = result.register_dump || new Array(32).fill(0);
+        let text_str = "";
+        const text = bytes_to_words(assemble_result.text());
+        for (const i in text) {
+            text_str += text[i].toString(16).padStart(8, '0') + "\n";
+        }
+        console.log(text_str);
+        consoleOutput += 'Text:\n' + text_str + '\n';
+        setTextDump(text_str);
 
-        // Compare old vs new register values
-        const changedRegisters = newRegisters.map((val, i) => val !== prevRegisters[i]);
-        setChangedRegisters(changedRegisters);
-
-        storeRegisterValues(newRegisters);
-        setTextDump(result.text_dump || "");
-        setDataDump(result.data_dump || "");
+        let data_str = "";
+        const data = bytes_to_words(assemble_result.data());
+        for (const i in data) {
+            data_str += data[i].toString(16).padStart(8, '0') + "\n";
+        }
+        console.log(data_str);
+        consoleOutput += 'Data:\n' + data_str + '\n';
+        setDataDump(data_str);
     }
 
-    setConsoleOutput(consoleOutput);
+    let core = new Mips32Core();
+    core.load_text(assemble_result.text());
+    core.load_data(assemble_result.data());
+
+    let running = true;
+
+    while (running) {
+        // core.tick() returns true if a syscall was called
+        if (core.tick()) {
+            let regs = core.dump_registers();
+            switch (regs[2]) {
+                case 4:
+                    console.log("Print String");
+                    consoleOutput += 'Print String\n';
+                    break;
+
+                case 10:
+                    console.log("Exit");
+                    consoleOutput += 'Exit\n';
+                    running = false;
+                    break;
+
+                default:
+                    console.log("Unknown syscall");
+                    consoleOutput += 'Unknown syscall\n';
+                    break;
+            }
+        }
+    }
+    const newRegisters = [...core.dump_registers()] || new Array(32).fill(0);
+    storeRegisterValues(newRegisters);
+    const changedRegisters = newRegisters.map((val, i) => val !== prevRegisters[i]);
+    setChangedRegisters(changedRegisters);
+    setOutput(consoleOutput);
 }
 
 const dummyRegisterValues = new Array(32).fill(0);
@@ -115,7 +154,7 @@ function validateCode(editor, monaco) {
     monaco.editor.setModelMarkers(model, "mips", errors);
 }
 
-function Editor({ isDarkMode }) {
+function Editor({ onPdfOpen, isDarkMode }) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -142,6 +181,47 @@ function Editor({ isDarkMode }) {
             validateCode(editor, monaco);
         });
         validateCode(editor, monaco);
+        monaco.languages.registerHoverProvider('mips', {
+            provideHover: function (model, pos) {
+                const token = model.getWordAtPosition(pos);
+                if (token) {
+                    const key = token.word.toLowerCase();
+                    const detail = instructionDetails[key];
+                    if (detail) {
+                        return {
+                            contents: [
+                                {value: '**' + token.word + '**'},
+                                {value: 'Usage: `' + detail.usage + '`'},
+                                {value: 'Description: ' + detail.description},
+                                {value: 'Page: ' + (detail.pdfPage || 1)}
+                            ]
+                        };
+                    }
+                }
+                return null;
+            }
+        });
+
+        editor.addAction({
+            id: 'open-instruction-manual',
+            label: 'Open Instruction Manual',
+            contextMenuGroupId: 'navigation',
+            contextMenuOrder: 1,
+            run: function (ed) {
+                const pos = ed.getPosition();
+                const token = ed.getModel().getWordAtPosition(pos);
+                if (token) {
+                    const key = token.word.toLowerCase();
+                    const detail = instructionDetails[key];
+                    if (detail) {
+                        const page = detail.pdfPage > 0 ? detail.pdfPage : 1;
+                        if (onPdfOpen) {
+                            onPdfOpen(page);
+                        }
+                    }
+                }
+            }
+        });
     }
 
     async function runCode() {

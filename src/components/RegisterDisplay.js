@@ -33,7 +33,7 @@ function RegisterDisplay({ registerValues = new Array(32).fill(0), changedRegist
                 </tr>
                 </thead>
                 <tbody>
-                {registerValues.map((value, index) =>
+                {[...registerValues].map((value, index) =>
                     <tr key={index} style={{ backgroundColor: changedRegisters[index] ? '#ffcc00' : 'transparent' }}>
                         <td style={{ border: '1px solid grey', padding: '5px', textAlign: 'center' }}>{registerLabels[index]}</td>
                         <td style={{ border: '1px solid grey', padding: '5px', textAlign: 'center' }}>{index}</td>
