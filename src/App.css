@@ -2,8 +2,17 @@
 html, body, #root, .App {
   height: 100%;
   margin: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.App.dark-mode {
   background-color: #121212;
   color: #ffffff;
+}
+
+.App.light-mode {
+  background-color: #ffffff;
+  color: #000000;
 }
 
 .main-content {
@@ -13,11 +22,75 @@ html, body, #root, .App {
 }
 
 .editor-container {
-  flex: 2;
+  flex: 3;
   border-right: 1px solid #333;
 }
 
 .right-panel {
   flex: 1;
   padding: 16px;
+  background-color: #222;
+  transition: background-color 0.3s ease;
+}
+
+.App.light-mode .right-panel {
+  background-color: #f5f5f5;
+}
+
+.console-output {
+  background: black;
+  color: white;
+  padding: 8px;
+  font-family: monospace;
+  height: 150px;
+  overflow-y: auto;
+}
+
+.App.light-mode .console-output {
+  background: #f5f5f5;
+  color: black;
+}
+
+.register-container {
+  background: #222;
+  color: white;
+  padding: 8px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.App.light-mode .register-container {
+  background: #ddd;
+  color: black;
+}
+
+.header {
+  background-color: #333;
+  color: white;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.App.light-mode .header {
+  background-color: #f5f5f5;
+  color: black;
+}
+
+.theme-toggle-button {
+  margin-left: 10px;
+  padding: 8px;
+  cursor: pointer;
+  background-color: #666;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.App.light-mode .theme-toggle-button {
+  background-color: #ddd;
+  color: black;
 }

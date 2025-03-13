@@ -1,208 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import MonacoEditor from '@monaco-editor/react';
+import RegisterDisplay from "./RegisterDisplay";
+import { instructionDetails } from '../data/instructionDetails';
+import init, {Mips32Core, AssemblerResult, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
 
-const instructionDetails = {
-    add: {//not implemented in mimic
-        usage: 'add $d, $s, $t',
-        description: 'Adds registers $s and $t and stores the result in $d.',
-        pdfPage: 0,
-    },
-    addu: {
-        usage: 'addu $d, $s, $t',
-        description: 'Adds registers $s and $t without checking for overflow.',
-        pdfPage: 48,
-    },
-    sub: {//not implemented in mimic
-        usage: 'sub $d, $s, $t',
-        description: 'Subtracts register $t from register $s and stores the result in $d.',
-        pdfPage: 0,
-    },
-    subu: {//not implemented in mimic
-        usage: 'subu $d, $s, $t',
-        description: 'Subtracts registers $s and $t without checking for overflow.',
-        pdfPage: 0,
-    },
-    and: {//not implemented in mimic
-        usage: 'and $d, $s, $t',
-        description: 'Performs a bitwise AND on registers $s and $t, storing the result in $d.',
-        pdfPage: 0,
-    },
-    or: {
-        usage: 'or $d, $s, $t',
-        description: 'Performs a bitwise OR on registers $s and $t, storing the result in $d.',
-        pdfPage: 324,
-    },
-    xor: {
-        usage: 'xor $d, $s, $t',
-        description: 'Performs a bitwise XOR on registers $s and $t, storing the result in $d.',
-        pdfPage: 456,
-    },
-    nor: {//not implemented in mimic
-        usage: 'nor $d, $s, $t',
-        description: 'Performs a bitwise NOR on registers $s and $t, storing the result in $d.',
-        pdfPage: 0,
-    },
-    slt: {
-        usage: 'slt $d, $s, $t',
-        description: 'Sets register $d to 1 if register $s is less than register $t; otherwise, sets it to 0.',
-        pdfPage: 388,
-    },
-    sltu: {//not implemented in mimic
-        usage: 'sltu $d, $s, $t',
-        description: 'Sets register $d to 1 if register $s is less than register $t (unsigned), otherwise 0.',
-        pdfPage: 0,
-    },
-    addi: {
-        usage: 'addi $t, $s, imm',
-        description: 'Adds the immediate value imm to register $s and stores the result in $t.',
-        pdfPage: 45,
-    },
-    addiu: {
-        usage: 'addiu $t, $s, imm',
-        description: 'Adds the immediate value imm to register $s and stores the result in $t without overflow checking.',
-        pdfPage: 46,
-    },
-    andi: {
-        usage: 'andi $t, $s, imm',
-        description: 'Performs a bitwise AND between register $s and the immediate value imm, storing the result in $t.',
-        pdfPage: 55,
-    },
-    ori: {
-        usage: 'ori $t, $s, imm',
-        description: 'Performs a bitwise OR between register $s and the immediate value imm, storing the result in $t.',
-        pdfPage: 325,
-    },
-    xori: {//not implemented in mimic
-        usage: 'xori $t, $s, imm',
-        description: 'Performs a bitwise XOR between register $s and the immediate value imm, storing the result in $t.',
-        pdfPage: 0,
-    },
-    lui: {
-        usage: 'lui $t, imm',
-        description: 'Loads the immediate value imm into the upper 16 bits of register $t.',
-        pdfPage: 243,
-    },
-    sll: {
-        usage: 'sll $d, $t, shamt',
-        description: 'Shifts register $t left by shamt bits and stores the result in $d.',
-        pdfPage: 386,
-    },
-    srl: {//not implemented in mimic
-        usage: 'srl $d, $t, shamt',
-        description: 'Shifts register $t right logically by shamt bits and stores the result in $d.',
-        pdfPage: 0,
-    },
-    sra: {//not implemented in mimic
-        usage: 'sra $d, $t, shamt',
-        description: 'Shifts register $t right arithmetically by shamt bits and stores the result in $d.',
-        pdfPage: 0,
-    },
-    sllv: {//not implemented in mimic
-        usage: 'sllv $d, $t, $s',
-        description: 'Shifts register $t left by the number of bits specified in register $s and stores the result in $d.',
-        pdfPage: 0,
-    },
-    srlv: {//not implemented in mimic
-        usage: 'srlv $d, $t, $s',
-        description: 'Shifts register $t right logically by the number of bits specified in register $s and stores the result in $d.',
-        pdfPage: 0,
-    },
-    srav: {//not implemented in mimic
-        usage: 'srav $d, $t, $s',
-        description: 'Shifts register $t right arithmetically by the number of bits specified in register $s and stores the result in $d.',
-        pdfPage: 0,
-    },
-    beq: {
-        usage: 'beq $s, $t, offset',
-        description: 'Branches to the given offset if registers $s and $t are equal.',
-        pdfPage: 82,
-    },
-    bne: {
-        usage: 'bne $s, $t, offset',
-        description: 'Branches to the given offset if registers $s and $t are not equal.',
-        pdfPage: 113,
-    },
-    blez: {//not implemented in mimic
-        usage: 'blez $s, offset',
-        description: 'Branches to the given offset if register $s is less than or equal to zero.',
-        pdfPage: 0,
-    },
-    bgtz: {//not implemented in mimic
-        usage: 'bgtz $s, offset',
-        description: 'Branches to the given offset if register $s is greater than zero.',
-        pdfPage: 0,
-    },
-    bltz: {//not implemented in mimic
-        usage: 'bltz $s, offset',
-        description: 'Branches to the given offset if register $s is less than zero.',
-        pdfPage: 0,
-    },
-    bgez: {//not implemented in mimic
-        usage: 'bgez $s, offset',
-        description: 'Branches to the given offset if register $s is greater than or equal to zero.',
-        pdfPage: 0,
-    },
-    j: {
-        usage: 'j target',
-        description: 'Jumps to the specified target address.',
-        pdfPage: 204,
-    },
-    jal: {//not implemented in mimic
-        usage: 'jal target',
-        description: 'Jumps to the specified target address and stores the return address in $ra.',
-        pdfPage: 0,
-    },
-    jr: {//not implemented in mimic
-        usage: 'jr $s',
-        description: 'Jumps to the address contained in register $s.',
-        pdfPage: 0,
-    },
-    jalr: {///not implemented in mimic
-        usage: 'jalr $d, $s',
-        description: 'Jumps to the address in register $s and stores the return address in register $d (typically $ra).',
-        pdfPage: 0,
-    },
-    lb: {//not implemented in mimic
-        usage: 'lb $t, offset($s)',
-        description: 'Loads a byte from memory at the address computed by ($s + offset) into register $t.',
-        pdfPage: 0,
-    },
-    lh: {//not implemented in mimic
-        usage: 'lh $t, offset($s)',
-        description: 'Loads a half-word from memory at the address computed by ($s + offset) into register $t.',
-        pdfPage: 0,
-    },
-    lw: {//not implemented in mimic
-        usage: 'lw $t, offset($s)',
-        description: 'Loads a word from memory at the address computed by ($s + offset) into register $t.',
-        pdfPage: 0,
-    },
-    lbu: {//not implemented in mimic
-        usage: 'lbu $t, offset($s)',
-        description: 'Loads an unsigned byte from memory at the address computed by ($s + offset) into register $t.',
-        pdfPage: 0,
-    },
-    lhu: {//not implemented in mimic
-        usage: 'lhu $t, offset($s)',
-        description: 'Loads an unsigned half-word from memory at the address computed by ($s + offset) into register $t.',
-        pdfPage: 0,
-    },
-    sb: {//not implemented in mimic
-        usage: 'sb $t, offset($s)',
-        description: 'Stores the least significant byte of register $t into memory at the address computed by ($s + offset).',
-        pdfPage: 0,
-    },
-    sh: {//not implemented in mimic
-        usage: 'sh $t, offset($s)',
-        description: 'Stores a half-word from register $t into memory at the address computed by ($s + offset).',
-        pdfPage: 0,
-    },
-    sw: {//not implemented in mimic
-        usage: 'sw $t, offset($s)',
-        description: 'Stores a word from register $t into memory at the address computed by ($s + offset).',
-        pdfPage: 0,
+async function run(currentCode, storeRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+    await init();
+
+    const assemble_result = assemble_mips32(currentCode);
+
+    let consoleOutput = '';
+
+    if (assemble_result.failed()) {
+        console.log(assemble_result.error());
+        consoleOutput += assemble_result.error();
+        setOutput(consoleOutput);
+        return;
+    } else {
+        let text_str = "";
+        const text = bytes_to_words(assemble_result.text());
+        for (const i in text) {
+            text_str += text[i].toString(16).padStart(8, '0') + "\n";
+        }
+        console.log(text_str);
+        consoleOutput += 'Text:\n' + text_str + '\n';
+        setTextDump(text_str);
+
+        let data_str = "";
+        const data = bytes_to_words(assemble_result.data());
+        for (const i in data) {
+            data_str += data[i].toString(16).padStart(8, '0') + "\n";
+        }
+        console.log(data_str);
+        consoleOutput += 'Data:\n' + data_str + '\n';
+        setDataDump(data_str);
     }
-};
+
+    let core = new Mips32Core();
+    core.load_text(assemble_result.text());
+    core.load_data(assemble_result.data());
+
+    let running = true;
+
+    while (running) {
+        // core.tick() returns true if a syscall was called
+        if (core.tick()) {
+            let regs = core.dump_registers();
+            switch (regs[2]) {
+                case 4:
+                    console.log("Print String");
+                    consoleOutput += 'Print String\n';
+                    break;
+
+                case 10:
+                    console.log("Exit");
+                    consoleOutput += 'Exit\n';
+                    running = false;
+                    break;
+
+                default:
+                    console.log("Unknown syscall");
+                    consoleOutput += 'Unknown syscall\n';
+                    break;
+            }
+        }
+    }
+    const newRegisters = [...core.dump_registers()] || new Array(32).fill(0);
+    storeRegisterValues(newRegisters);
+    const changedRegisters = newRegisters.map((val, i) => val !== prevRegisters[i]);
+    setChangedRegisters(changedRegisters);
+    setOutput(consoleOutput);
+}
+
+const dummyRegisterValues = new Array(32).fill(0);
+dummyRegisterValues[29] = 2147479548;
 
 function getStoredDocs() {
     const stored = localStorage.getItem('files');
@@ -216,20 +87,102 @@ function getStoredDocs() {
     return [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }];
 }
 
-function Editor({ onPdfOpen }) {
+const validInstructions = new Set([
+    "add", "addu", "sub", "subu", "and", "or", "xor", "nor", "slt", "sltu",
+    "addi", "addiu", "andi", "ori", "xori", "lui", "sll", "srl", "sra",
+    "sllv", "srlv", "srav", "beq", "bne", "blez", "bgtz", "bltz", "bgez",
+    "j", "jal", "jr", "jalr", "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw",
+    "li", "la", "move", "syscall"
+]);
+
+const validAnnotations = new Set([".data", ".text"]);
+
+const validRegisters = new Set([
+    "$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1",
+    "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3",
+    "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"
+]);
+
+function validateCode(editor, monaco) {
+    const model = editor.getModel();
+    if (!model) return;
+
+    const text = model.getValue();
+    const lines = text.split("\n");
+    const errors = [];
+
+    lines.forEach((line, index) => {
+        // Skip blank lines (or lines with only whitespace)
+        if (line.trim() === "") return;
+
+        const tokens = line.trim().split(/\s+/);
+        let position = line.match(/^\s*/)?.[0].length + 1;
+
+        if (!validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+            if (!tokens[0].endsWith(":") && tokens[0] !== "#") {
+                errors.push({
+                    startLineNumber: index + 1,
+                    startColumn: position,
+                    endLineNumber: index + 1,
+                    endColumn: position + tokens[0].length,
+                    message: `"${tokens[0]}" is not a valid MIPS instruction.`,
+                    severity: monaco.MarkerSeverity.Error,
+                });
+            }
+        }
+
+        position += tokens[0].length + 1;
+
+        for (let i = 1; i < tokens.length; i++) {
+            const register = tokens[i].replace(/,/, "");
+            if (register.startsWith("$") && !validRegisters.has(register)) {
+                let startPos = line.indexOf(tokens[i], position - 1) + 1;
+                let endPos = startPos + tokens[i].length;
+                errors.push({
+                    startLineNumber: index + 1,
+                    startColumn: startPos,
+                    endLineNumber: index + 1,
+                    endColumn: endPos,
+                    message: `"${tokens[i]}" is not a valid MIPS register.`,
+                    severity: monaco.MarkerSeverity.Error,
+                });
+            }
+            position += tokens[i].length + 1;
+        }
+    });
+
+    monaco.editor.setModelMarkers(model, "mips", errors);
+}
+
+function Editor({ onPdfOpen, isDarkMode }) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
+    const [output, setOutput] = useState('');
+    const [registerValues, setRegisterValues] = useState(dummyRegisterValues);
+    const [previousRegisters, setPreviousRegisters] = useState(dummyRegisterValues);
+    const [changedRegisters, setChangedRegisters] = useState(new Array(32).fill(false));
+    const [textDump, setTextDump] = useState('');
+    const [dataDump, setDataDump] = useState('');
     const [editingDoc, setEditingDoc] = useState(-1);
     const [docRename, setDocRename] = useState('');
-    const [output, setOutput] = useState('');
 
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
     }, [docs]);
 
+    function editorChange(newContent) {
+        const updatedDocs = [...docs];
+        updatedDocs[currentDoc].content = newContent;
+        setDocs(updatedDocs);
+    }
+
     function editorMount(editor, monaco) {
+        editor.onDidChangeModelContent(() => {
+            validateCode(editor, monaco);
+        });
+        validateCode(editor, monaco);
         monaco.languages.registerHoverProvider('mips', {
-            provideHover: function(model, pos) {
+            provideHover: function (model, pos) {
                 const token = model.getWordAtPosition(pos);
                 if (token) {
                     const key = token.word.toLowerCase();
@@ -237,10 +190,10 @@ function Editor({ onPdfOpen }) {
                     if (detail) {
                         return {
                             contents: [
-                                { value: '**' + token.word + '**' },
-                                { value: 'Usage: `' + detail.usage + '`' },
-                                { value: 'Description: ' + detail.description },
-                                { value: 'Page: ' + (detail.pdfPage || 1) }
+                                {value: '**' + token.word + '**'},
+                                {value: 'Usage: `' + detail.usage + '`'},
+                                {value: 'Description: ' + detail.description},
+                                {value: 'Page: ' + (detail.pdfPage || 1)}
                             ]
                         };
                     }
@@ -254,7 +207,7 @@ function Editor({ onPdfOpen }) {
             label: 'Open Instruction Manual',
             contextMenuGroupId: 'navigation',
             contextMenuOrder: 1,
-            run: function(ed) {
+            run: function (ed) {
                 const pos = ed.getPosition();
                 const token = ed.getModel().getWordAtPosition(pos);
                 if (token) {
@@ -271,60 +224,40 @@ function Editor({ onPdfOpen }) {
         });
     }
 
-    function editorChange(newContent) {
-        const updatedDocs = docs.slice();
-        updatedDocs[currentDoc].content = newContent;
-        setDocs(updatedDocs);
-    }
-
-    function createDoc() {
-        const newDoc = { name: 'File' + (docs.length + 1) + '.asm', content: '.data\n\n.text\n' };
-        const updatedDocs = docs.slice();
-        updatedDocs.push(newDoc);
-        setDocs(updatedDocs);
-        setCurrentDoc(updatedDocs.length - 1);
-    }
-
-    function removeDoc(index) {
-        if (window.confirm('Delete ' + docs[index].name + '?')) {
-            const updatedDocs = docs.slice();
-            updatedDocs.splice(index, 1);
-            if (updatedDocs.length === 0) {
-                updatedDocs.push({ name: 'Untitled.asm', content: '.data\n\n.text\n' });
-                setCurrentDoc(0);
-            } else if (currentDoc >= updatedDocs.length) {
-                setCurrentDoc(updatedDocs.length - 1);
-            }
-            setDocs(updatedDocs);
+    async function runCode() {
+        setPreviousRegisters([...registerValues]); // Store previous registers before execution
+        const currentCode = docs[currentDoc].content;
+        try {
+            await run(currentCode, setRegisterValues, setOutput, setTextDump, setDataDump, previousRegisters, setChangedRegisters);
+        } catch (error) {
+            console.error(error);
         }
     }
 
-    function handleImport(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                const newDoc = { name: file.name, content: ev.target.result };
-                const updatedDocs = docs.slice();
-                updatedDocs.push(newDoc);
-                setDocs(updatedDocs);
-                setCurrentDoc(updatedDocs.length - 1);
-            };
-            reader.readAsText(file);
-        }
-    }
-
-    function handleExport() {
-        const current = docs[currentDoc];
-        const blob = new Blob([current.content], { type: 'text/plain' });
+    function handleDownload(data, fileName) {
+        const blob = new Blob([data], { type: 'text/plain' });
         const fileURL = URL.createObjectURL(blob);
         const aLink = document.createElement('a');
         aLink.href = fileURL;
-        aLink.download = current.name;
+        aLink.download = fileName;
         document.body.appendChild(aLink);
         aLink.click();
         document.body.removeChild(aLink);
         URL.revokeObjectURL(fileURL);
+    }
+
+    function createDoc() {
+        const newDoc = { name: `File${docs.length + 1}.asm`, content: '.data\n\n.text\n' };
+        setDocs([...docs, newDoc]);
+        setCurrentDoc(docs.length);
+    }
+
+    function removeDoc(index) {
+        if (window.confirm(`Delete ${docs[index].name}?`)) {
+            const updatedDocs = docs.filter((_, i) => i !== index);
+            setDocs(updatedDocs.length ? updatedDocs : [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }]);
+            setCurrentDoc(0);
+        }
     }
 
     function initiateRename(index) {
@@ -334,7 +267,7 @@ function Editor({ onPdfOpen }) {
 
     function commitRename() {
         if (docRename.trim() !== '') {
-            const updatedDocs = docs.slice();
+            const updatedDocs = [...docs];
             updatedDocs[editingDoc].name = docRename;
             setDocs(updatedDocs);
         }
@@ -347,93 +280,75 @@ function Editor({ onPdfOpen }) {
         setDocRename('');
     }
 
-    // runCode function remains unchanged.
-    async function runCode() {
-        const currentCode = docs[currentDoc].content;
-        try {
-            const response = await fetch("http://localhost:3030/assemble", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ code: currentCode })
-            });
-            const data = await response.json();
-            let outputText = "";
-            outputText += "Execution Status: " + data.execution_status + "\n\n";
-            if (data.errors) {
-                outputText += "Errors: " + data.errors + "\n\n";
-            }
-            outputText += "Machine Code:\n" + data.machine_code + "\n";
-            outputText += "Text Dump (hex-only):\n" + data.text_dump + "\n";
-            outputText += "Text Dump (ASCII, reversed):\n" + data.text_dump_friendly + "\n";
-            outputText += "Data Dump (hex-only):\n" + data.data_dump + "\n";
-            outputText += "Data Dump (ASCII, reversed):\n" + data.data_dump_friendly + "\n";
-            if (data.syscall_output) {
-                outputText += "\nSyscall Output:\n" + data.syscall_output + "\n";
-            }
-            if (data.register_dump) {
-                outputText += "\nRegister Dump:\n";
-                data.register_dump.forEach((reg, index) => {
-                    outputText += `$${index}: ${reg}\n`;
-                });
-            }
-            setOutput(outputText);
-        } catch (error) {
-            console.error("Error running code:", error);
-            setOutput("Error running code: " + error.message);
-        }
-    }
-
-    let docButtons = [];
-    for (let i = 0; i < docs.length; i++) {
-        const isEditing = i === editingDoc;
-        const btnContent = isEditing ? (
-            <>
-                <input value={docRename} onChange={e => setDocRename(e.target.value)} style={{ marginRight: '2px' }}/>
-                <button onClick={commitRename}>OK</button>
-                <button onClick={cancelRename}>Cancel</button>
-            </>
-        ) : (
-            <>
-                <button onClick={() => setCurrentDoc(i)}>{docs[i].name}</button>
-                <button onClick={() => removeDoc(i)}>x</button>
-                <button onClick={() => initiateRename(i)}>rename</button>
-            </>
-        );
-        docButtons.push(<span key={i} style={{ marginRight: '4px' }}>{btnContent}</span>);
+    function selectDoc(i) {
+        setCurrentDoc(i);
     }
 
     return (
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', width: "100%" }}>
-            <div style={{ background: '#333', padding: '8px' }}>
-                {docButtons}
+        <div style={{
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            width: "100%",
+            backgroundColor: isDarkMode ? "#121212" : "#ffffff",
+            color: isDarkMode ? "#ffffff" : "#000000"
+        }}>
+            <div style={{ background: isDarkMode ? '#333' : '#f5f5f5', padding: '8px', display: 'flex', flexWrap: 'wrap', flexShrink: 0 }}>
+                {docs.map((doc, i) => (
+                    <span key={i} style={{ marginRight: '4px' }}>
+                        {editingDoc === i ? (
+                            <>
+                                <input value={docRename} onChange={e => setDocRename(e.target.value)} style={{ marginRight: '2px' }} />
+                                <button onClick={commitRename}>OK</button>
+                                <button onClick={cancelRename}>Cancel</button>
+                            </>
+                        ) : (
+                            <>
+                                <button onClick={() => selectDoc(i)}>{doc.name}</button>
+                                <button onClick={() => removeDoc(i)}>x</button>
+                                <button onClick={() => initiateRename(i)}>Rename</button>
+                            </>
+                        )}
+                    </span>
+                ))}
                 <button onClick={createDoc}>New File</button>
                 <button onClick={runCode}>Run</button>
-                <button>
-                    <label style={{ marginLeft: '8px', cursor: 'pointer' }}>
-                        Import
-                        <input type="file" accept=".asm" onChange={handleImport} style={{ display: 'none' }} />
-                    </label>
-                </button>
-                <button onClick={handleExport} style={{ marginLeft: '8px' }}>Export</button>
+                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download .asm</button>
+                <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
+                <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'row' }}>
-                <div style={{ flex: 1 }}>
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+                <div style={{ flex: 3, minWidth: '0px' }}>
                     <MonacoEditor
                         height="100%"
                         width="100%"
                         language="mips"
-                        theme="vs-dark"
+                        theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
-                        onMount={editorMount}
                         onChange={editorChange}
                         options={{ automaticLayout: true }}
+                        onMount={editorMount}
                     />
                 </div>
-                <div style={{ width: '400px', background: 'black', color: 'white', padding: '8px', fontFamily: 'monospace', overflowY: 'auto' }}>
-                    <h3 style={{ margin: '0 0 8px 0' }}>Console Output:</h3>
-                    <pre style={{ margin: 0 }}>{output}</pre>
+
+                <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', background: isDarkMode ? "#222" : "#f5f5f5", color: isDarkMode ? "white" : "black" }}>
+                    <div style={{
+                        background: isDarkMode ? 'black' : '#f5f5f5',
+                        color: isDarkMode ? 'white' : 'black',
+                        padding: '8px',
+                        fontFamily: 'monospace',
+                        height: '150px',
+                        overflowY: 'auto'
+                    }}>
+                        <h3 style={{ margin: '0 0 8px 0' }}>Console Output:</h3>
+                        <pre style={{ margin: 0 }}>{output}</pre>
+                    </div>
+
+                    <div style={{ background: isDarkMode ? '#222' : '#ddd', color: isDarkMode ? 'white' : 'black', padding: '8px', flex: 1, overflowY: 'auto' }}>
+                        <h3 style={{ margin: '0 0 8px 0' }}>Registers:</h3>
+                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters} />
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,0 +1,14 @@
+{
+  "name": "mimic-wasm",
+  "version": "0.1.0",
+  "files": [
+    "mimic_wasm_bg.wasm",
+    "mimic_wasm.js",
+    "mimic_wasm.d.ts"
+  ],
+  "module": "mimic_wasm.js",
+  "types": "mimic_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
