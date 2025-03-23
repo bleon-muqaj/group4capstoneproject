@@ -2,19 +2,15 @@ import React, { useState, useEffect } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import RegisterDisplay from "./RegisterDisplay";
 import { instructionDetails } from '../data/instructionDetails';
-import init, {Mips32Core, AssemblerResult, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
+import init, {Mips32Core, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
 
-async function run(currentCode, storeRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode) {
     await init();
 
     const assemble_result = assemble_mips32(currentCode);
 
-    let consoleOutput = '';
-
     if (assemble_result.failed()) {
         console.log(assemble_result.error());
-        consoleOutput += assemble_result.error();
-        setOutput(consoleOutput);
         return;
     } else {
         let text_str = "";
@@ -22,8 +18,6 @@ async function run(currentCode, storeRegisterValues, setOutput, setTextDump, set
         for (const i in text) {
             text_str += text[i].toString(16).padStart(8, '0') + "\n";
         }
-        console.log(text_str);
-        consoleOutput += 'Text:\n' + text_str + '\n';
         setTextDump(text_str);
 
         let data_str = "";
@@ -31,14 +25,18 @@ async function run(currentCode, storeRegisterValues, setOutput, setTextDump, set
         for (const i in data) {
             data_str += data[i].toString(16).padStart(8, '0') + "\n";
         }
-        console.log(data_str);
-        consoleOutput += 'Data:\n' + data_str + '\n';
         setDataDump(data_str);
     }
 
+    setAssembledCode(assemble_result);
+}
+
+async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+    let consoleOutput = '';
+
     let core = new Mips32Core();
-    core.load_text(assemble_result.text());
-    core.load_data(assemble_result.data());
+    core.load_text(assembledCode.text());
+    core.load_data(assembledCode.data());
 
     let running = true;
 
@@ -65,10 +63,12 @@ async function run(currentCode, storeRegisterValues, setOutput, setTextDump, set
             }
         }
     }
-    const newRegisters = [...core.dump_registers()] || new Array(32).fill(0);
-    storeRegisterValues(newRegisters);
-    const changedRegisters = newRegisters.map((val, i) => val !== prevRegisters[i]);
-    setChangedRegisters(changedRegisters);
+    const newRegisters = [...core.dump_registers()];
+    setRegisterValues((prev) => {
+        const changedRegisters = newRegisters.map((val, i) => val !== prev[i]);
+        setChangedRegisters(changedRegisters);
+        return newRegisters;
+    });
     setOutput(consoleOutput);
 }
 
@@ -165,6 +165,8 @@ function Editor({ onPdfOpen, isDarkMode }) {
     const [dataDump, setDataDump] = useState('');
     const [editingDoc, setEditingDoc] = useState(-1);
     const [docRename, setDocRename] = useState('');
+    const [assembledCode, setAssembledCode] = useState(null);
+    const [currentTab, setCurrentTab] = useState();
 
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
@@ -224,11 +226,23 @@ function Editor({ onPdfOpen, isDarkMode }) {
         });
     }
 
-    async function runCode() {
-        setPreviousRegisters([...registerValues]); // Store previous registers before execution
+    async function assembleCode() {
         const currentCode = docs[currentDoc].content;
         try {
-            await run(currentCode, setRegisterValues, setOutput, setTextDump, setDataDump, previousRegisters, setChangedRegisters);
+            await assemble(currentCode, setTextDump, setDataDump, setAssembledCode);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async function runCode() {
+        if (!assembledCode) {
+            console.log('Error: Code has not been assembled')
+            return;
+        }
+        setPreviousRegisters(registerValues); // Store previous registers before execution
+        try {
+            await run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, previousRegisters, setChangedRegisters);
         } catch (error) {
             console.error(error);
         }
@@ -312,6 +326,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
                     </span>
                 ))}
                 <button onClick={createDoc}>New File</button>
+                <button onClick={assembleCode}>Assemble</button>
                 <button onClick={runCode}>Run</button>
                 <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download .asm</button>
                 <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
