@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import RegisterDisplay from "./RegisterDisplay";
-import { instructionDetails } from '../data/instructionDetails';
+import {TextSegmentDisplay, DataSegmentDisplay} from "./CodeContentDisplays";
+import {instructionDetails} from '../data/instructionDetails';
 import init, {Mips32Core, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
 
 async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode) {
@@ -81,10 +82,10 @@ function getStoredDocs() {
         try {
             return JSON.parse(stored);
         } catch (err) {
-            return [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }];
+            return [{name: 'Untitled.asm', content: '.data\n\n.text\n'}];
         }
     }
-    return [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }];
+    return [{name: 'Untitled.asm', content: '.data\n\n.text\n'}];
 }
 
 const validInstructions = new Set([
@@ -154,7 +155,7 @@ function validateCode(editor, monaco) {
     monaco.editor.setModelMarkers(model, "mips", errors);
 }
 
-function Editor({ onPdfOpen, isDarkMode }) {
+function Editor({onPdfOpen, isDarkMode}) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -166,7 +167,12 @@ function Editor({ onPdfOpen, isDarkMode }) {
     const [editingDoc, setEditingDoc] = useState(-1);
     const [docRename, setDocRename] = useState('');
     const [assembledCode, setAssembledCode] = useState(null);
-    const [currentTab, setCurrentTab] = useState();
+    const [currentTab, setCurrentTab] = useState('edit');
+
+    useEffect(() => {
+        console.log(textDump);
+        console.log(textDump.slice(0, -1).split('\n'));
+    }, [textDump]);
 
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
@@ -249,7 +255,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
     }
 
     function handleDownload(data, fileName) {
-        const blob = new Blob([data], { type: 'text/plain' });
+        const blob = new Blob([data], {type: 'text/plain'});
         const fileURL = URL.createObjectURL(blob);
         const aLink = document.createElement('a');
         aLink.href = fileURL;
@@ -261,7 +267,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
     }
 
     function createDoc() {
-        const newDoc = { name: `File${docs.length + 1}.asm`, content: '.data\n\n.text\n' };
+        const newDoc = {name: `File${docs.length + 1}.asm`, content: '.data\n\n.text\n'};
         setDocs([...docs, newDoc]);
         setCurrentDoc(docs.length);
     }
@@ -269,7 +275,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
     function removeDoc(index) {
         if (window.confirm(`Delete ${docs[index].name}?`)) {
             const updatedDocs = docs.filter((_, i) => i !== index);
-            setDocs(updatedDocs.length ? updatedDocs : [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }]);
+            setDocs(updatedDocs.length ? updatedDocs : [{name: 'Untitled.asm', content: '.data\n\n.text\n'}]);
             setCurrentDoc(0);
         }
     }
@@ -296,6 +302,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
 
     function selectDoc(i) {
         setCurrentDoc(i);
+        setCurrentTab('edit');
     }
 
     return (
@@ -307,12 +314,29 @@ function Editor({ onPdfOpen, isDarkMode }) {
             backgroundColor: isDarkMode ? "#121212" : "#ffffff",
             color: isDarkMode ? "#ffffff" : "#000000"
         }}>
-            <div style={{ background: isDarkMode ? '#333' : '#f5f5f5', padding: '8px', display: 'flex', flexWrap: 'wrap', flexShrink: 0 }}>
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                flexShrink: 0
+            }}>
+                <button onClick={() => setCurrentTab('edit')}>Edit</button>
+                <button onClick={() => setCurrentTab('execute')}>Execute</button>
+            </div>
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                flexShrink: 0
+            }}>
                 {docs.map((doc, i) => (
-                    <span key={i} style={{ marginRight: '4px' }}>
+                    <span key={i} style={{marginRight: '4px'}}>
                         {editingDoc === i ? (
                             <>
-                                <input value={docRename} onChange={e => setDocRename(e.target.value)} style={{ marginRight: '2px' }} />
+                                <input value={docRename} onChange={e => setDocRename(e.target.value)}
+                                       style={{marginRight: '2px'}}/>
                                 <button onClick={commitRename}>OK</button>
                                 <button onClick={cancelRename}>Cancel</button>
                             </>
@@ -328,13 +352,20 @@ function Editor({ onPdfOpen, isDarkMode }) {
                 <button onClick={createDoc}>New File</button>
                 <button onClick={assembleCode}>Assemble</button>
                 <button onClick={runCode}>Run</button>
-                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download .asm</button>
+                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
+                    .asm
+                </button>
                 <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
                 <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
             </div>
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-                <div style={{ flex: 3, minWidth: '0px' }}>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'row',
+                overflow: 'hidden'
+            }}>
+                <div style={{display: currentTab === 'edit' ? 'flex' : 'none', flex: 3, minWidth: '0px'}}>
                     <MonacoEditor
                         height="100%"
                         width="100%"
@@ -342,12 +373,28 @@ function Editor({ onPdfOpen, isDarkMode }) {
                         theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
                         onChange={editorChange}
-                        options={{ automaticLayout: true }}
+                        options={{automaticLayout: true}}
                         onMount={editorMount}
                     />
                 </div>
-
-                <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', background: isDarkMode ? "#222" : "#f5f5f5", color: isDarkMode ? "white" : "black" }}>
+                <div style={{
+                    display: currentTab === 'execute' ? 'flex' : 'none',
+                    flex: 3,
+                    flexDirection: 'column',
+                    minWidth: '0px'
+                }}>
+                    Text Segment
+                    {textDump !== '' && <TextSegmentDisplay textDump={textDump}/>}
+                    Data Segment
+                </div>
+                <div style={{
+                    flex: 1,
+                    minWidth: '250px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: isDarkMode ? "#222" : "#f5f5f5",
+                    color: isDarkMode ? "white" : "black"
+                }}>
                     <div style={{
                         background: isDarkMode ? 'black' : '#f5f5f5',
                         color: isDarkMode ? 'white' : 'black',
@@ -356,13 +403,19 @@ function Editor({ onPdfOpen, isDarkMode }) {
                         height: '150px',
                         overflowY: 'auto'
                     }}>
-                        <h3 style={{ margin: '0 0 8px 0' }}>Console Output:</h3>
-                        <pre style={{ margin: 0 }}>{output}</pre>
+                        <h3 style={{margin: '0 0 8px 0'}}>Console Output:</h3>
+                        <pre style={{margin: 0}}>{output}</pre>
                     </div>
 
-                    <div style={{ background: isDarkMode ? '#222' : '#ddd', color: isDarkMode ? 'white' : 'black', padding: '8px', flex: 1, overflowY: 'auto' }}>
-                        <h3 style={{ margin: '0 0 8px 0' }}>Registers:</h3>
-                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters} />
+                    <div style={{
+                        background: isDarkMode ? '#222' : '#ddd',
+                        color: isDarkMode ? 'white' : 'black',
+                        padding: '8px',
+                        flex: 1,
+                        overflowY: 'auto'
+                    }}>
+                        <h3 style={{margin: '0 0 8px 0'}}>Registers:</h3>
+                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters}/>
                     </div>
                 </div>
             </div>
