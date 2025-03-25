@@ -232,7 +232,7 @@ function Editor({ onPdfOpen }) {
             "addi", "addiu", "andi", "ori", "xori", "lui", "sll", "srl", "sra",
             "sllv", "srlv", "srav", "beq", "bne", "blez", "bgtz", "bltz", "bgez",
             "j", "jal", "jr", "jalr", "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw",
-            "li", "la", "move", "syscall", "", "msg:"
+            "li", "la", "move", "syscall", ""
         ]);
         const validAnnotation = new Set([
             ".data", ".text",
@@ -247,6 +247,7 @@ function Editor({ onPdfOpen }) {
             "$k0", "$k1",
             "$gp", "$sp", "$fp", "$ra"
         ]);
+        const labels = new Set(); // Store all labels
 
         function validateCode() {
             const model = editor.getModel();
@@ -264,6 +265,18 @@ function Editor({ onPdfOpen }) {
                 const startColumn = (match ? match[0].length : 0) + 1;
                 let position = startColumn; // Track position in line
 
+                // console.log("Collected labels:", Array.from(labels));
+
+                if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotation.has(tokens[0])) {
+                        // Check if token contains ':'
+                        if (tokens[0].endsWith(":")) {
+                            labels.add(tokens[0].slice(0, -1)); // Store valid label (like msg:)
+                            return; // Skip further validation for this line
+                        }
+                }
+                console.log("Collected labels:", Array.from(labels));
+
+
                 if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotation.has(tokens[0])) {
                     if (tokens[0] === "#") {
                         return;
@@ -273,7 +286,7 @@ function Editor({ onPdfOpen }) {
                         startColumn: startColumn,
                         endLineNumber: index + 1,
                         endColumn: position + tokens[0].length,
-                        message: `"${tokens[0]}" is not a valid MIPS instruction.`,
+                        message: `"${tokens[0]}" is not a valid MIPS instruction (initial)).`,
                         severity: monaco.MarkerSeverity.Error,
                     });
                 }
@@ -287,15 +300,18 @@ function Editor({ onPdfOpen }) {
                     if (register === "#") {
                         return;
                     }
+                    if (!isNaN(register) && Number.isInteger(Number(register))) {
+                        continue; // Skip integer values
+                    }
                     let startPos = line.indexOf(tokens[i], position - 1) + 1; // Find exact position
                     let endPos = startPos + tokens[i].length;
-                    if (!validRegisters.has(register)) {
+                    if (!validRegisters.has(register) && !labels.has(register)) {
                         errors.push({
                             startLineNumber: index + 1,
                             startColumn: startPos,
                             endLineNumber: index + 1,
                             endColumn: endPos,
-                            message: `"${tokens[i]}" is not a valid MIPS Register.`,
+                            message: `"${tokens[i]}" is not a valid MIPS Register from (continues).`,
                             severity: monaco.MarkerSeverity.Error,
                         });
                     }
