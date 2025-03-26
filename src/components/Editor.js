@@ -108,6 +108,8 @@ const validRegisters = new Set([
     "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"
 ]);
 
+const labels = new Set(); // Store all labels
+
 function validateCode(editor, monaco) {
     const model = editor.getModel();
     if (!model) return;
@@ -115,40 +117,52 @@ function validateCode(editor, monaco) {
     const text = model.getValue();
     const lines = text.split("\n");
     const errors = [];
+    labels.clear();
 
     lines.forEach((line, index) => {
-        // Skip blank lines (or lines with only whitespace)
         if (line.trim() === "") return;
 
         const tokens = line.trim().split(/\s+/);
-        let position = line.match(/^\s*/)?.[0].length + 1;
+        const match = line.match(/^\s*/);
+        const startColumn = (match ? match[0].length : 0) + 1;
+        let position = startColumn;
 
-        if (!validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-            if (!tokens[0].endsWith(":") && tokens[0] !== "#") {
-                errors.push({
-                    startLineNumber: index + 1,
-                    startColumn: position,
-                    endLineNumber: index + 1,
-                    endColumn: position + tokens[0].length,
-                    message: `"${tokens[0]}" is not a valid MIPS instruction.`,
-                    severity: monaco.MarkerSeverity.Error,
-                });
+        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+            if (tokens[0].endsWith(":")) {
+                labels.add(tokens[0].slice(0, -1));
+                return;
             }
+        }
+
+        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+            if (tokens[0] === "#") return;
+
+            errors.push({
+                startLineNumber: index + 1,
+                startColumn: startColumn,
+                endLineNumber: index + 1,
+                endColumn: position + tokens[0].length,
+                message: `"${tokens[0]}" is not a valid MIPS instruction (initial).`,
+                severity: monaco.MarkerSeverity.Error,
+            });
         }
 
         position += tokens[0].length + 1;
 
         for (let i = 1; i < tokens.length; i++) {
             const register = tokens[i].replace(/,/, "");
-            if (register.startsWith("$") && !validRegisters.has(register)) {
-                let startPos = line.indexOf(tokens[i], position - 1) + 1;
-                let endPos = startPos + tokens[i].length;
+            if (register === "#") return;
+            if (!isNaN(register) && Number.isInteger(Number(register))) continue;
+
+            let startPos = line.indexOf(tokens[i], position - 1) + 1;
+            let endPos = startPos + tokens[i].length;
+            if (!validRegisters.has(register) && !labels.has(register)) {
                 errors.push({
                     startLineNumber: index + 1,
                     startColumn: startPos,
                     endLineNumber: index + 1,
                     endColumn: endPos,
-                    message: `"${tokens[i]}" is not a valid MIPS register.`,
+                    message: `"${tokens[i]}" is not a valid MIPS Register or Label.`,
                     severity: monaco.MarkerSeverity.Error,
                 });
             }
@@ -158,6 +172,7 @@ function validateCode(editor, monaco) {
 
     monaco.editor.setModelMarkers(model, "mips", errors);
 }
+
 
 function Editor({onPdfOpen, isDarkMode}) {
     const [docs, setDocs] = useState(getStoredDocs());
@@ -181,6 +196,17 @@ function Editor({onPdfOpen, isDarkMode}) {
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
     }, [docs]);
+
+    useEffect(() => {
+        // Clear relevant state when switching to a new document
+        setTextDump('');
+        setDataDump('');
+        setAssembledCode(null);
+        setOutput('');
+        setRegisterValues(dummyRegisterValues);
+        setChangedRegisters(new Array(32).fill(false));
+    }, [currentDoc]);
+
 
     function editorChange(newContent) {
         const updatedDocs = [...docs];
@@ -239,6 +265,8 @@ function Editor({onPdfOpen, isDarkMode}) {
     async function assembleCode() {
         const currentCode = docs[currentDoc].content;
         try {
+            setRegisterValues(dummyRegisterValues);
+            setChangedRegisters(new Array(32).fill(false));
             await assemble(currentCode, setTextDump, setDataDump, setAssembledCode, setOutput);
         } catch (error) {
             console.error(error);
@@ -250,9 +278,10 @@ function Editor({onPdfOpen, isDarkMode}) {
             console.log('Error: Code has not been assembled')
             return;
         }
-        setPreviousRegisters(registerValues); // Store previous registers before execution
+        setPreviousRegisters(registerValues);
         try {
-            await run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, previousRegisters, setChangedRegisters);
+            await run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, registerValues, setChangedRegisters);
+            setAssembledCode(null);
         } catch (error) {
             console.error(error);
         }
