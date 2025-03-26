@@ -5,13 +5,15 @@ import {TextSegmentDisplay, DataSegmentDisplay} from "./CodeContentDisplays";
 import {instructionDetails} from '../data/instructionDetails';
 import init, {Mips32Core, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
 
-async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode) {
+async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode, setOutput) {
     await init();
 
     const assemble_result = assemble_mips32(currentCode);
 
     if (assemble_result.failed()) {
         console.log(assemble_result.error());
+        setAssembledCode(null);
+        setOutput('Error: Assembly failed.')
         return;
     } else {
         let text_str = "";
@@ -30,6 +32,7 @@ async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode)
     }
 
     setAssembledCode(assemble_result);
+    setOutput('Assembly was successful.')
 }
 
 async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
@@ -74,6 +77,7 @@ async function run(assembledCode, setRegisterValues, setOutput, setTextDump, set
 }
 
 const dummyRegisterValues = new Array(32).fill(0);
+dummyRegisterValues[28] = 268468224;
 dummyRegisterValues[29] = 2147479548;
 
 function getStoredDocs() {
@@ -170,9 +174,9 @@ function Editor({onPdfOpen, isDarkMode}) {
     const [currentTab, setCurrentTab] = useState('edit');
 
     useEffect(() => {
-        console.log(textDump);
-        console.log(textDump.slice(0, -1).split('\n'));
-    }, [textDump]);
+        console.log('Data Dump', dataDump)
+        console.log(dataDump.slice(0, -1).split('\n'));
+    }, [dataDump])
 
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
@@ -235,7 +239,7 @@ function Editor({onPdfOpen, isDarkMode}) {
     async function assembleCode() {
         const currentCode = docs[currentDoc].content;
         try {
-            await assemble(currentCode, setTextDump, setDataDump, setAssembledCode);
+            await assemble(currentCode, setTextDump, setDataDump, setAssembledCode, setOutput);
         } catch (error) {
             console.error(error);
         }
@@ -351,7 +355,7 @@ function Editor({onPdfOpen, isDarkMode}) {
                 ))}
                 <button onClick={createDoc}>New File</button>
                 <button onClick={assembleCode}>Assemble</button>
-                <button onClick={runCode}>Run</button>
+                <button onClick={runCode} disabled={!assembledCode}>Run</button>
                 <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
                     .asm
                 </button>
@@ -383,9 +387,9 @@ function Editor({onPdfOpen, isDarkMode}) {
                     flexDirection: 'column',
                     minWidth: '0px'
                 }}>
-                    Text Segment
-                    {textDump !== '' && <TextSegmentDisplay textDump={textDump}/>}
-                    Data Segment
+                    {assembledCode ? (<><p>Text Segment</p> <TextSegmentDisplay textDump={textDump}/> <p>Data
+                            Segment</p> <DataSegmentDisplay dataDump={dataDump}/> </>) :
+                        <p>Assemble your code to view text and data content.</p>}
                 </div>
                 <div style={{
                     flex: 1,
