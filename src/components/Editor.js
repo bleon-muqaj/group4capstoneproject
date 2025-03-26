@@ -120,7 +120,9 @@ function validateCode(editor, monaco) {
     labels.clear();
 
     lines.forEach((line, index) => {
-        if (line.trim() === "") return;
+        const trimmed = line.trim();
+        if (trimmed === "") return;
+        if (trimmed.startsWith("#")) return; // Entire comment line
 
         const tokens = line.trim().split(/\s+/);
         const match = line.match(/^\s*/);
@@ -135,7 +137,7 @@ function validateCode(editor, monaco) {
         }
 
         if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-            if (tokens[0] === "#") return;
+            if (tokens[0].startsWith("#")) return; // Comment after code
 
             errors.push({
                 startLineNumber: index + 1,
@@ -151,7 +153,7 @@ function validateCode(editor, monaco) {
 
         for (let i = 1; i < tokens.length; i++) {
             const register = tokens[i].replace(/,/, "");
-            if (register === "#") return;
+            if (register.startsWith("#")) return; // Ignore rest of line if comment begins
             if (!isNaN(register) && Number.isInteger(Number(register))) continue;
 
             let startPos = line.indexOf(tokens[i], position - 1) + 1;
