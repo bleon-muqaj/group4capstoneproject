@@ -29,7 +29,8 @@ export function TextSegmentDisplay({textDump}) {
                         <td style={{
                             border: '1px solid grey',
                             padding: '5px',
-                            textAlign: 'center'
+                            textAlign: 'center',
+                            fontWeight: 'bold'
                         }}>0x{toHexString(baseAddress + index * 4)}</td>
                         <td style={{border: '1px solid grey', padding: '5px', textAlign: 'center'}}>0x{value}</td>
                     </tr>
