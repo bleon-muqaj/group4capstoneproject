@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import RegisterDisplay from "./RegisterDisplay";
-import { instructionDetails } from '../data/instructionDetails';
-import init, {Mips32Core, AssemblerResult, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
+import {TextSegmentDisplay, DataSegmentDisplay} from "./CodeContentDisplays";
+import {instructionDetails} from '../data/instructionDetails';
+import init, {Mips32Core, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
 
-async function run(currentCode, storeRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode, setOutput) {
     await init();
 
     const assemble_result = assemble_mips32(currentCode);
 
-    let consoleOutput = '';
-
     if (assemble_result.failed()) {
         console.log(assemble_result.error());
-        consoleOutput += assemble_result.error();
-        setOutput(consoleOutput);
+        setAssembledCode(null);
+        setOutput('Error: Assembly failed.')
         return;
     } else {
         let text_str = "";
@@ -22,8 +21,6 @@ async function run(currentCode, storeRegisterValues, setOutput, setTextDump, set
         for (const i in text) {
             text_str += text[i].toString(16).padStart(8, '0') + "\n";
         }
-        console.log(text_str);
-        consoleOutput += 'Text:\n' + text_str + '\n';
         setTextDump(text_str);
 
         let data_str = "";
@@ -31,14 +28,19 @@ async function run(currentCode, storeRegisterValues, setOutput, setTextDump, set
         for (const i in data) {
             data_str += data[i].toString(16).padStart(8, '0') + "\n";
         }
-        console.log(data_str);
-        consoleOutput += 'Data:\n' + data_str + '\n';
         setDataDump(data_str);
     }
 
+    setAssembledCode(assemble_result);
+    setOutput('Assembly was successful.')
+}
+
+async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+    let consoleOutput = '';
+
     let core = new Mips32Core();
-    core.load_text(assemble_result.text());
-    core.load_data(assemble_result.data());
+    core.load_text(assembledCode.text());
+    core.load_data(assembledCode.data());
 
     let running = true;
 
@@ -65,14 +67,17 @@ async function run(currentCode, storeRegisterValues, setOutput, setTextDump, set
             }
         }
     }
-    const newRegisters = [...core.dump_registers()] || new Array(32).fill(0);
-    storeRegisterValues(newRegisters);
-    const changedRegisters = newRegisters.map((val, i) => val !== prevRegisters[i]);
-    setChangedRegisters(changedRegisters);
+    const newRegisters = [...core.dump_registers()];
+    setRegisterValues((prev) => {
+        const changedRegisters = newRegisters.map((val, i) => val !== prev[i]);
+        setChangedRegisters(changedRegisters);
+        return newRegisters;
+    });
     setOutput(consoleOutput);
 }
 
 const dummyRegisterValues = new Array(32).fill(0);
+dummyRegisterValues[28] = 268468224;
 dummyRegisterValues[29] = 2147479548;
 
 function getStoredDocs() {
@@ -81,10 +86,10 @@ function getStoredDocs() {
         try {
             return JSON.parse(stored);
         } catch (err) {
-            return [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }];
+            return [{name: 'Untitled.asm', content: '.data\n\n.text\n'}];
         }
     }
-    return [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }];
+    return [{name: 'Untitled.asm', content: '.data\n\n.text\n'}];
 }
 
 const validInstructions = new Set([
@@ -103,6 +108,8 @@ const validRegisters = new Set([
     "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"
 ]);
 
+const labels = new Set(); // Store all labels
+
 function validateCode(editor, monaco) {
     const model = editor.getModel();
     if (!model) return;
@@ -110,40 +117,54 @@ function validateCode(editor, monaco) {
     const text = model.getValue();
     const lines = text.split("\n");
     const errors = [];
+    labels.clear();
 
     lines.forEach((line, index) => {
-        // Skip blank lines (or lines with only whitespace)
-        if (line.trim() === "") return;
+        const trimmed = line.trim();
+        if (trimmed === "") return;
+        if (trimmed.startsWith("#")) return; // Entire comment line
 
         const tokens = line.trim().split(/\s+/);
-        let position = line.match(/^\s*/)?.[0].length + 1;
+        const match = line.match(/^\s*/);
+        const startColumn = (match ? match[0].length : 0) + 1;
+        let position = startColumn;
 
-        if (!validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-            if (!tokens[0].endsWith(":") && tokens[0] !== "#") {
-                errors.push({
-                    startLineNumber: index + 1,
-                    startColumn: position,
-                    endLineNumber: index + 1,
-                    endColumn: position + tokens[0].length,
-                    message: `"${tokens[0]}" is not a valid MIPS instruction.`,
-                    severity: monaco.MarkerSeverity.Error,
-                });
+        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+            if (tokens[0].endsWith(":")) {
+                labels.add(tokens[0].slice(0, -1));
+                return;
             }
+        }
+
+        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+            if (tokens[0].startsWith("#")) return; // Comment after code
+
+            errors.push({
+                startLineNumber: index + 1,
+                startColumn: startColumn,
+                endLineNumber: index + 1,
+                endColumn: position + tokens[0].length,
+                message: `"${tokens[0]}" is not a valid MIPS instruction (initial).`,
+                severity: monaco.MarkerSeverity.Error,
+            });
         }
 
         position += tokens[0].length + 1;
 
         for (let i = 1; i < tokens.length; i++) {
             const register = tokens[i].replace(/,/, "");
-            if (register.startsWith("$") && !validRegisters.has(register)) {
-                let startPos = line.indexOf(tokens[i], position - 1) + 1;
-                let endPos = startPos + tokens[i].length;
+            if (register.startsWith("#")) return; // Ignore rest of line if comment begins
+            if (!isNaN(register) && Number.isInteger(Number(register))) continue;
+
+            let startPos = line.indexOf(tokens[i], position - 1) + 1;
+            let endPos = startPos + tokens[i].length;
+            if (!validRegisters.has(register) && !labels.has(register)) {
                 errors.push({
                     startLineNumber: index + 1,
                     startColumn: startPos,
                     endLineNumber: index + 1,
                     endColumn: endPos,
-                    message: `"${tokens[i]}" is not a valid MIPS register.`,
+                    message: `"${tokens[i]}" is not a valid MIPS Register or Label.`,
                     severity: monaco.MarkerSeverity.Error,
                 });
             }
@@ -154,7 +175,8 @@ function validateCode(editor, monaco) {
     monaco.editor.setModelMarkers(model, "mips", errors);
 }
 
-function Editor({ onPdfOpen, isDarkMode }) {
+
+function Editor({onPdfOpen, isDarkMode}) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -165,10 +187,28 @@ function Editor({ onPdfOpen, isDarkMode }) {
     const [dataDump, setDataDump] = useState('');
     const [editingDoc, setEditingDoc] = useState(-1);
     const [docRename, setDocRename] = useState('');
+    const [assembledCode, setAssembledCode] = useState(null);
+    const [currentTab, setCurrentTab] = useState('edit');
+
+    useEffect(() => {
+        console.log('Data Dump', dataDump)
+        console.log(dataDump.slice(0, -1).split('\n'));
+    }, [dataDump])
 
     useEffect(() => {
         localStorage.setItem('files', JSON.stringify(docs));
     }, [docs]);
+
+    useEffect(() => {
+        // Clear relevant state when switching to a new document
+        setTextDump('');
+        setDataDump('');
+        setAssembledCode(null);
+        setOutput('');
+        setRegisterValues(dummyRegisterValues);
+        setChangedRegisters(new Array(32).fill(false));
+    }, [currentDoc]);
+
 
     function editorChange(newContent) {
         const updatedDocs = [...docs];
@@ -224,18 +264,33 @@ function Editor({ onPdfOpen, isDarkMode }) {
         });
     }
 
-    async function runCode() {
-        setPreviousRegisters([...registerValues]); // Store previous registers before execution
+    async function assembleCode() {
         const currentCode = docs[currentDoc].content;
         try {
-            await run(currentCode, setRegisterValues, setOutput, setTextDump, setDataDump, previousRegisters, setChangedRegisters);
+            setRegisterValues(dummyRegisterValues);
+            setChangedRegisters(new Array(32).fill(false));
+            await assemble(currentCode, setTextDump, setDataDump, setAssembledCode, setOutput);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async function runCode() {
+        if (!assembledCode) {
+            console.log('Error: Code has not been assembled')
+            return;
+        }
+        setPreviousRegisters(registerValues);
+        try {
+            await run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, registerValues, setChangedRegisters);
+            setAssembledCode(null);
         } catch (error) {
             console.error(error);
         }
     }
 
     function handleDownload(data, fileName) {
-        const blob = new Blob([data], { type: 'text/plain' });
+        const blob = new Blob([data], {type: 'text/plain'});
         const fileURL = URL.createObjectURL(blob);
         const aLink = document.createElement('a');
         aLink.href = fileURL;
@@ -247,7 +302,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
     }
 
     function createDoc() {
-        const newDoc = { name: `File${docs.length + 1}.asm`, content: '.data\n\n.text\n' };
+        const newDoc = {name: `File${docs.length + 1}.asm`, content: '.data\n\n.text\n'};
         setDocs([...docs, newDoc]);
         setCurrentDoc(docs.length);
     }
@@ -255,7 +310,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
     function removeDoc(index) {
         if (window.confirm(`Delete ${docs[index].name}?`)) {
             const updatedDocs = docs.filter((_, i) => i !== index);
-            setDocs(updatedDocs.length ? updatedDocs : [{ name: 'Untitled.asm', content: '.data\n\n.text\n' }]);
+            setDocs(updatedDocs.length ? updatedDocs : [{name: 'Untitled.asm', content: '.data\n\n.text\n'}]);
             setCurrentDoc(0);
         }
     }
@@ -282,6 +337,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
 
     function selectDoc(i) {
         setCurrentDoc(i);
+        setCurrentTab('edit');
     }
 
     return (
@@ -293,12 +349,29 @@ function Editor({ onPdfOpen, isDarkMode }) {
             backgroundColor: isDarkMode ? "#121212" : "#ffffff",
             color: isDarkMode ? "#ffffff" : "#000000"
         }}>
-            <div style={{ background: isDarkMode ? '#333' : '#f5f5f5', padding: '8px', display: 'flex', flexWrap: 'wrap', flexShrink: 0 }}>
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                flexShrink: 0
+            }}>
+                <button onClick={() => setCurrentTab('edit')}>Edit</button>
+                <button onClick={() => setCurrentTab('execute')}>Execute</button>
+            </div>
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                flexShrink: 0
+            }}>
                 {docs.map((doc, i) => (
-                    <span key={i} style={{ marginRight: '4px' }}>
+                    <span key={i} style={{marginRight: '4px'}}>
                         {editingDoc === i ? (
                             <>
-                                <input value={docRename} onChange={e => setDocRename(e.target.value)} style={{ marginRight: '2px' }} />
+                                <input value={docRename} onChange={e => setDocRename(e.target.value)}
+                                       style={{marginRight: '2px'}}/>
                                 <button onClick={commitRename}>OK</button>
                                 <button onClick={cancelRename}>Cancel</button>
                             </>
@@ -312,14 +385,22 @@ function Editor({ onPdfOpen, isDarkMode }) {
                     </span>
                 ))}
                 <button onClick={createDoc}>New File</button>
-                <button onClick={runCode}>Run</button>
-                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download .asm</button>
+                <button onClick={assembleCode}>Assemble</button>
+                <button onClick={runCode} disabled={!assembledCode}>Run</button>
+                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
+                    .asm
+                </button>
                 <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
                 <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
             </div>
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-                <div style={{ flex: 3, minWidth: '0px' }}>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'row',
+                overflow: 'hidden'
+            }}>
+                <div style={{display: currentTab === 'edit' ? 'flex' : 'none', flex: 3, minWidth: '0px'}}>
                     <MonacoEditor
                         height="100%"
                         width="100%"
@@ -327,12 +408,28 @@ function Editor({ onPdfOpen, isDarkMode }) {
                         theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
                         onChange={editorChange}
-                        options={{ automaticLayout: true }}
+                        options={{automaticLayout: true}}
                         onMount={editorMount}
                     />
                 </div>
-
-                <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', background: isDarkMode ? "#222" : "#f5f5f5", color: isDarkMode ? "white" : "black" }}>
+                <div style={{
+                    display: currentTab === 'execute' ? 'flex' : 'none',
+                    flex: 3,
+                    flexDirection: 'column',
+                    minWidth: '0px'
+                }}>
+                    {assembledCode ? (<><p>Text Segment</p> <TextSegmentDisplay textDump={textDump}/> <p>Data
+                            Segment</p> <DataSegmentDisplay dataDump={dataDump}/> </>) :
+                        <p>Assemble your code to view text and data content.</p>}
+                </div>
+                <div style={{
+                    flex: 1,
+                    minWidth: '250px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: isDarkMode ? "#222" : "#f5f5f5",
+                    color: isDarkMode ? "white" : "black"
+                }}>
                     <div style={{
                         background: isDarkMode ? 'black' : '#f5f5f5',
                         color: isDarkMode ? 'white' : 'black',
@@ -341,13 +438,19 @@ function Editor({ onPdfOpen, isDarkMode }) {
                         height: '150px',
                         overflowY: 'auto'
                     }}>
-                        <h3 style={{ margin: '0 0 8px 0' }}>Console Output:</h3>
-                        <pre style={{ margin: 0 }}>{output}</pre>
+                        <h3 style={{margin: '0 0 8px 0'}}>Console Output:</h3>
+                        <pre style={{margin: 0}}>{output}</pre>
                     </div>
 
-                    <div style={{ background: isDarkMode ? '#222' : '#ddd', color: isDarkMode ? 'white' : 'black', padding: '8px', flex: 1, overflowY: 'auto' }}>
-                        <h3 style={{ margin: '0 0 8px 0' }}>Registers:</h3>
-                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters} />
+                    <div style={{
+                        background: isDarkMode ? '#222' : '#ddd',
+                        color: isDarkMode ? 'white' : 'black',
+                        padding: '8px',
+                        flex: 1,
+                        overflowY: 'auto'
+                    }}>
+                        <h3 style={{margin: '0 0 8px 0'}}>Registers:</h3>
+                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters}/>
                     </div>
                 </div>
             </div>
