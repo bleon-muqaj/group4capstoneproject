@@ -120,7 +120,7 @@ function validateCode(editor, monaco) {
     labels.clear();
 
     lines.forEach((line, index) => { // collect all labels before underlining
-        console.log("Collected labels:", Array.from(labels));
+        // console.log("Collected labels:", Array.from(labels));
         const tokens = line.trim().split(/\s+/);
         if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
             if (tokens[0].endsWith(":")) {
