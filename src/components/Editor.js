@@ -119,7 +119,18 @@ function validateCode(editor, monaco) {
     const errors = [];
     labels.clear();
 
+    lines.forEach((line, index) => { // collect all labels before underlining
+        console.log("Collected labels:", Array.from(labels));
+        const tokens = line.trim().split(/\s+/);
+        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+            if (tokens[0].endsWith(":")) {
+                labels.add(tokens[0].slice(0, -1));
+            }
+        }
+    });
+
     lines.forEach((line, index) => {
+
         const trimmed = line.trim();
         if (trimmed === "") return;
         if (trimmed.startsWith("#")) return; // Entire comment line
@@ -144,7 +155,7 @@ function validateCode(editor, monaco) {
                 startColumn: startColumn,
                 endLineNumber: index + 1,
                 endColumn: position + tokens[0].length,
-                message: `"${tokens[0]}" is not a valid MIPS instruction (initial).`,
+                message: `"${tokens[0]}" is not a valid MIPS instruction.`,
                 severity: monaco.MarkerSeverity.Error,
             });
         }
@@ -171,6 +182,7 @@ function validateCode(editor, monaco) {
             position += tokens[i].length + 1;
         }
     });
+    // });
 
     monaco.editor.setModelMarkers(model, "mips", errors);
 }
