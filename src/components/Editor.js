@@ -148,7 +148,18 @@ function Editor({onPdfOpen, isDarkMode}) {
         const errors = [];
         labels.clear();
 
+        lines.forEach((line, index) => { // collect all labels before underlining
+            // console.log("Collected labels:", Array.from(labels));
+            const tokens = line.trim().split(/\s+/);
+            if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+                if (tokens[0].endsWith(":")) {
+                    labels.add(tokens[0].slice(0, -1));
+                }
+            }
+        });
+
         lines.forEach((line, index) => {
+
             const trimmed = line.trim();
             if (trimmed === "") return;
             if (trimmed.startsWith("#")) return; // Entire comment line
@@ -173,7 +184,7 @@ function Editor({onPdfOpen, isDarkMode}) {
                     startColumn: startColumn,
                     endLineNumber: index + 1,
                     endColumn: position + tokens[0].length,
-                    message: `"${tokens[0]}" is not a valid MIPS instruction (initial).`,
+                    message: `"${tokens[0]}" is not a valid MIPS instruction.`,
                     severity: monaco.MarkerSeverity.Error,
                 });
             }
@@ -193,7 +204,7 @@ function Editor({onPdfOpen, isDarkMode}) {
                         startColumn: startPos,
                         endLineNumber: index + 1,
                         endColumn: endPos,
-                        message: `${register} is not a valid MIPS Register or Label.`,
+                        message: `"${tokens[i]}" is not a valid MIPS Register or Label.`,
                         severity: monaco.MarkerSeverity.Error,
                     });
                 }
@@ -272,6 +283,7 @@ function Editor({onPdfOpen, isDarkMode}) {
             setRegisterValues(dummyRegisterValues);
             setChangedRegisters(new Array(32).fill(false));
             await assemble(currentCode, currentFileName, setTextDump, setDataDump, setAssembledCode, setOutput);
+            setCurrentTab('execute');
         } catch (error) {
             console.error(error);
         }

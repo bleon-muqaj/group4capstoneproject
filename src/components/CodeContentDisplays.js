@@ -42,7 +42,7 @@ export function TextSegmentDisplay({textDump}) {
 }
 
 export function DataSegmentDisplay({dataDump}) {
-    const initialDataValues = dataDump.slice(0, -1).split('\n');
+    const initialDataValues = dataDump === '' ? Array(0) : dataDump.slice(0, -1).split('\n');
     // Create an array containing the data values and fill the rest with the default value (00000000)
     const filledDataValues = [...initialDataValues, ...Array(15 * 9 - initialDataValues.length).fill('00000000')];
     const tableValues = Array.from({length: 15}, (_, rowIndex) =>
