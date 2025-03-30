@@ -204,7 +204,7 @@ function Editor({onPdfOpen, isDarkMode}) {
                         startColumn: startPos,
                         endLineNumber: index + 1,
                         endColumn: endPos,
-                        message: `"${tokens[i]}" is not a valid MIPS Register or Label.`,
+                        message: `"${register}" is not a valid MIPS Register or Label.`,
                         severity: monaco.MarkerSeverity.Error,
                     });
                 }
