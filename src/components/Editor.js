@@ -249,18 +249,75 @@ function Editor({ onPdfOpen }) {
         ]);
         const labels = new Set(); // Store all labels
 
+        const expectedArguments = {
+            "add": 3,
+            "addu": 3,
+            "sub": 3,
+            "subu": 3,
+            "and": 3,
+            "or": 3,
+            "xor": 3,
+            "nor": 3,
+            "slt": 3,
+            "sltu": 3,
+            "addi": 3,
+            "addiu": 3,
+            "andi": 3,
+            "ori": 3,
+            "xori": 3,
+            "lui": 2,      // For example, lui might take only 2 arguments (destination and immediate)
+            "sll": 3,
+            "srl": 3,
+            "sra": 3,
+            "sllv": 3,
+            "srlv": 3,
+            "srav": 3,
+            "beq": 3,
+            "bne": 3,
+            "blez": 2,
+            "bgtz": 2,
+            "bltz": 2,
+            "bgez": 2,
+            "j": 1,
+            "jal": 1,
+            "jr": 1,
+            "jalr": 2,
+            "lb": 3,
+            "lh": 3,
+            "lw": 3,
+            "lbu": 3,
+            "lhu": 3,
+            "sb": 3,
+            "sh": 3,
+            "sw": 3,
+            "li": 2,
+            "la": 2,
+            "move": 2,
+            "syscall": 0
+        };
+
         function validateCode() {
             const model = editor.getModel();
             if (!model) return;
 
-
             const text = model.getValue();
             const errors = [];
-
-
             const lines = text.split("\n");
+
             lines.forEach((line, index) => {
-                const tokens = line.trim().split(/\s+/);
+                let tokens = line.trim().split(/\s+/);
+
+                console.log("tokens:" + tokens);
+                // Remove any tokens after the comment marker.
+                const commentIndex = tokens.indexOf("#");
+                console.log(commentIndex)
+                if (commentIndex !== -1) {
+                    tokens = tokens.slice(0, commentIndex);
+                }
+
+                // If there are no tokens left after removing comments, skip this line.
+                if (tokens.length === 0) return;
+
                 const match = line.match(/^\s*/);
                 const startColumn = (match ? match[0].length : 0) + 1;
                 let position = startColumn; // Track position in line
@@ -276,7 +333,7 @@ function Editor({ onPdfOpen }) {
                 }
                 console.log("Collected labels:", Array.from(labels));
 
-
+                // Validate the first token
                 if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotation.has(tokens[0])) {
                     if (tokens[0] === "#") {
                         return;
@@ -293,6 +350,54 @@ function Editor({ onPdfOpen }) {
 
                 // Move position forward after the instruction
                 position += tokens[0].length + 1;
+
+
+                // If the token is a valid instruction, and we have an expected argument count, validate it.
+                if (validInstructions.has(tokens[0]) && expectedArguments.hasOwnProperty(tokens[0])) {
+                    const expectedCount = expectedArguments[tokens[0]];
+                    console.log(expectedCount)
+                    const providedCount = tokens.length - 1; // excluding the instruction itself
+                    console.log(providedCount)
+                    if (providedCount > expectedCount) {
+                        // Mark the first extra token as the start of the error.
+                        const extraToken = tokens[expectedCount + 1];
+                        const extraStart = line.indexOf(extraToken) + 1;
+                        errors.push({
+                            startLineNumber: index + 1,
+                            startColumn: extraStart,
+                            endLineNumber: index + 1,
+                            endColumn: extraStart + extraToken.length,
+                            message: `"${tokens[0]}" expects ${expectedCount} arguments, but got ${providedCount}.`,
+                            severity: monaco.MarkerSeverity.Error,
+                        });
+                    } else if (providedCount < expectedCount) {
+                        // Optionally, you could also flag when there are too few arguments.
+                        errors.push({
+                            startLineNumber: index + 1,
+                            startColumn: startColumn,
+                            endLineNumber: index + 1,
+                            endColumn: startColumn + tokens[0].length,
+                            message: `"${tokens[0]}" expects ${expectedCount} arguments, but got ${providedCount}.`,
+                            severity: monaco.MarkerSeverity.Error,
+                        });
+                    }
+                }
+
+                // After filtering out comments and before validating registers:
+                if (tokens.length > 1) { // Ensure there is at least one argument.
+                    const lastArg = tokens[tokens.length - 1];
+                    if (lastArg.endsWith(",")) {
+                        const lastArgIndex = line.lastIndexOf(lastArg);
+                        errors.push({
+                            startLineNumber: index + 1,
+                            startColumn: lastArgIndex + 1,
+                            endLineNumber: index + 1,
+                            endColumn: lastArgIndex + lastArg.length + 1,
+                            message: `The last argument should not end with a comma.`,
+                            severity: monaco.MarkerSeverity.Error,
+                        });
+                    }
+                }
 
                 // Validate registers (removing commas)
                 for (let i = 1; i < tokens.length; i++) {
@@ -325,11 +430,7 @@ function Editor({ onPdfOpen }) {
 
 
         editor.onDidChangeModelContent(validateCode);
-
-
         validateCode();
-
-
 
         monaco.languages.registerHoverProvider('mips', {
             provideHover: function(model, pos) {
