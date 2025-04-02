@@ -47,3 +47,4 @@ function RegisterDisplay({ registerValues = new Array(32).fill(0), changedRegist
 }
 
 export default RegisterDisplay;
+
