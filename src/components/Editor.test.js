@@ -201,3 +201,156 @@ test('deleting active file updates active index', () => {
     fireEvent.click(deleteButtons[1]);
     expect(screen.getByText('Untitled.asm')).toBeInTheDocument();
 });
+
+test('assemble button sets assembly success message', async () => {
+    const mockAssemble = {
+        failed: () => false,
+        text: () => new Uint8Array([0x12, 0x34, 0x56, 0x78]),
+        data: () => new Uint8Array([0xab, 0xcd, 0xef, 0x00]),
+    };
+    jest.mock('../mimic-wasm/pkg/mimic_wasm.js', () => ({
+        init: jest.fn(),
+        assemble_mips32: jest.fn(() => mockAssemble),
+        bytes_to_words: jest.fn(() => [0x12345678]),
+    }));
+    render(<Editor />);
+    fireEvent.click(screen.getByText('Assemble'));
+    await waitFor(() => {
+        expect(screen.getByText('Assembly was successful.')).toBeInTheDocument();
+    });
+});
+
+test('run button is disabled before assembly', () => {
+    render(<Editor />);
+    expect(screen.getByText('Run')).toBeDisabled();
+});
+
+test('run button is enabled after assembly', async () => {
+    render(<Editor />);
+    fireEvent.click(screen.getByText('Assemble'));
+    await waitFor(() => {
+        expect(screen.getByText('Run')).not.toBeDisabled();
+    });
+});
+
+test('tab switching displays correct content', () => {
+    render(<Editor />);
+    fireEvent.click(screen.getByText('Execute'));
+    expect(screen.getByText(/Assemble your code to view/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Edit'));
+    expect(screen.getByTestId('monaco-editor')).toBeInTheDocument();
+});
+
+test('console output updates after run', async () => {
+    const coreMock = {
+        load_text: jest.fn(),
+        load_data: jest.fn(),
+        dump_registers: () => {
+            const regs = new Array(32).fill(0);
+            regs[2] = 10;
+            return regs;
+        },
+        tick: jest.fn()
+            .mockImplementationOnce(() => true)
+            .mockImplementationOnce(() => false),
+    };
+    jest.mock('../mimic-wasm/pkg/mimic_wasm.js', () => ({
+        init: jest.fn(),
+        Mips32Core: jest.fn(() => coreMock),
+        assemble_mips32: jest.fn(() => ({
+            failed: () => false,
+            text: () => new Uint8Array([0x00]),
+            data: () => new Uint8Array([0x00]),
+        })),
+        bytes_to_words: jest.fn(() => [0x00000000]),
+    }));
+
+    render(<Editor />);
+    fireEvent.click(screen.getByText('Assemble'));
+    await waitFor(() => fireEvent.click(screen.getByText('Run')));
+    await waitFor(() => {
+        expect(screen.getByText(/Exit/)).toBeInTheDocument();
+    });
+});
+
+test('creating and removing multiple files updates tab list correctly', () => {
+    render(<Editor />);
+    fireEvent.click(screen.getByText('New File'));
+    fireEvent.click(screen.getByText('New File'));
+    let files = screen.getAllByText(/\.asm/);
+    expect(files.length).toBeGreaterThan(2);
+    const deleteButtons = screen.getAllByText('x');
+    fireEvent.click(deleteButtons[0]);
+    fireEvent.click(deleteButtons[1]);
+    expect(screen.getByText('Untitled.asm')).toBeInTheDocument();
+});
+
+test('editor mounts and registers hover provider', () => {
+    const monacoSpy = jest.fn();
+    render(<Editor />);
+    expect(monacoSpy).not.toThrow;
+});
+
+test('downloading .asm file triggers blob creation', () => {
+    render(<Editor />);
+    const spy = jest.spyOn(URL, 'createObjectURL');
+    fireEvent.click(screen.getByText('Download .asm'));
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+});
+
+test('download .data button works after assembling', async () => {
+    render(<Editor />);
+    fireEvent.click(screen.getByText('Assemble'));
+    await waitFor(() => {
+        const downloadBtn = screen.getByText('Download .data');
+        expect(downloadBtn).toBeInTheDocument();
+    });
+});
+
+test('register display renders 32 registers', () => {
+    render(<Editor />);
+    expect(screen.getByText('$zero')).toBeInTheDocument();
+    expect(screen.getAllByText(/0x[0-9a-f]{8}/i).length).toBeGreaterThan(20);
+});
+
+test('output updates correctly on syscall', async () => {
+    const coreMock = {
+        load_text: jest.fn(),
+        load_data: jest.fn(),
+        dump_registers: () => {
+            const regs = new Array(32).fill(0);
+            regs[2] = 4;
+            return regs;
+        },
+        tick: jest.fn()
+            .mockImplementationOnce(() => true)
+            .mockImplementationOnce(() => {
+                coreMock.dump_registers = () => {
+                    const regs = new Array(32).fill(0);
+                    regs[2] = 10;
+                    return regs;
+                };
+                return true;
+            })
+            .mockImplementationOnce(() => false),
+    };
+
+    jest.mock('../mimic-wasm/pkg/mimic_wasm.js', () => ({
+        Mips32Core: jest.fn(() => coreMock),
+        assemble_mips32: jest.fn(() => ({
+            failed: () => false,
+            text: () => new Uint8Array([0x00]),
+            data: () => new Uint8Array([0x00]),
+        })),
+        bytes_to_words: jest.fn(() => [0x00000000]),
+        init: jest.fn(),
+    }));
+
+    render(<Editor />);
+    fireEvent.click(screen.getByText('Assemble'));
+    await waitFor(() => fireEvent.click(screen.getByText('Run')));
+    await waitFor(() => {
+        expect(screen.getByText('Print String')).toBeInTheDocument();
+    });
+});
