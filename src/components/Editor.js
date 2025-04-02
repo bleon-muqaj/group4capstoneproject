@@ -5,7 +5,7 @@ import {TextSegmentDisplay, DataSegmentDisplay} from "./CodeContentDisplays";
 import {instructionDetails} from '../data/instructionDetails';
 import init, {Mips32Core, assemble_mips32, bytes_to_words} from '../mimic-wasm/pkg/mimic_wasm.js';
 
-async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode, setOutput) {
+async function assemble(currentCode, currentFileName, setTextDump, setDataDump, setAssembledCode, setOutput) {
     await init();
 
     const assemble_result = assemble_mips32(currentCode);
@@ -36,7 +36,7 @@ async function assemble(currentCode, setTextDump, setDataDump, setAssembledCode,
     }
 
     setAssembledCode(assemble_result);
-    setOutput('Assembly was successful.')
+    setOutput(`Assembly of ${currentFileName} was successful.\nYou can now run your code.\n`);
 }
 
 async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
@@ -125,83 +125,6 @@ const validRegisters = new Set([
 
 const labels = new Set();
 
-function validateCode(editor, monaco) {
-    const model = editor.getModel();
-    if (!model) return;
-
-    const text = model.getValue();
-    const lines = text.split("\n");
-    const errors = [];
-    labels.clear();
-
-    lines.forEach((line, index) => {
-        const tokens = line.trim().split(/\s+/);
-        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-            if (tokens[0].endsWith(":")) {
-                labels.add(tokens[0].slice(0, -1));
-            }
-        }
-    });
-
-    lines.forEach((line, index) => {
-
-        const trimmed = line.trim();
-        if (trimmed === "") return;
-        if (trimmed.startsWith("#")) return;
-
-        const tokens = line.trim().split(/\s+/);
-        const match = line.match(/^\s*/);
-        const startColumn = (match ? match[0].length : 0) + 1;
-        let position = startColumn;
-
-        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-            if (tokens[0].endsWith(":")) {
-                labels.add(tokens[0].slice(0, -1));
-                return;
-            }
-        }
-
-        if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-            if (tokens[0].startsWith("#")) return;
-
-            errors.push({
-                startLineNumber: index + 1,
-                startColumn: startColumn,
-                endLineNumber: index + 1,
-                endColumn: position + tokens[0].length,
-                message: `"${tokens[0]}" is not a valid MIPS instruction.`,
-                severity: monaco.MarkerSeverity.Error,
-            });
-        }
-
-        position += tokens[0].length + 1;
-
-        for (let i = 1; i < tokens.length; i++) {
-            const register = tokens[i].replace(/,/, "");
-            if (register.startsWith("#")) return;
-            if (!isNaN(register) && Number.isInteger(Number(register))) continue;
-
-            let startPos = line.indexOf(tokens[i], position - 1) + 1;
-            let endPos = startPos + tokens[i].length;
-            if (!validRegisters.has(register) && !labels.has(register)) {
-                errors.push({
-                    startLineNumber: index + 1,
-                    startColumn: startPos,
-                    endLineNumber: index + 1,
-                    endColumn: endPos,
-                    message: `"${tokens[i]}" is not a valid MIPS Register or Label.`,
-                    severity: monaco.MarkerSeverity.Error,
-                });
-            }
-            position += tokens[i].length + 1;
-        }
-    });
-    // });
-
-    monaco.editor.setModelMarkers(model, "mips", errors);
-}
-
-
 function Editor({ onPdfOpen, isDarkMode }) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
@@ -219,7 +142,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
     const lineCounterRef = useRef(0);
     const [showTextAscii, setShowTextAscii] = useState(false);
     const [showDataAscii, setShowDataAscii] = useState(false);
-
+    const [errors, setErrors] = useState([]);
     const [breakpoints, setBreakpoints] = useState(new Set());
     const [currentLine, setCurrentLine] = useState(null);
     const coreRef = useRef(null); // new
@@ -241,6 +164,83 @@ function Editor({ onPdfOpen, isDarkMode }) {
         setRegisterValues(dummyRegisterValues);
         setChangedRegisters(new Array(32).fill(false));
     }, [currentDoc]);
+
+    function validateCode(editor, monaco) {
+        const model = editor.getModel();
+        if (!model) return;
+
+        const text = model.getValue();
+        const lines = text.split("\n");
+        const errors = [];
+        labels.clear();
+
+        lines.forEach((line, index) => { // collect all labels before underlining
+            // console.log("Collected labels:", Array.from(labels));
+            const tokens = line.trim().split(/\s+/);
+            if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+                if (tokens[0].endsWith(":")) {
+                    labels.add(tokens[0].slice(0, -1));
+                }
+            }
+        });
+
+        lines.forEach((line, index) => {
+
+            const trimmed = line.trim();
+            if (trimmed === "") return;
+            if (trimmed.startsWith("#")) return; // Entire comment line
+
+            const tokens = line.trim().split(/\s+/);
+            const match = line.match(/^\s*/);
+            const startColumn = (match ? match[0].length : 0) + 1;
+            let position = startColumn;
+
+            if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+                if (tokens[0].endsWith(":")) {
+                    labels.add(tokens[0].slice(0, -1));
+                    return;
+                }
+            }
+
+            if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+                if (tokens[0].startsWith("#")) return; // Comment after code
+
+                errors.push({
+                    startLineNumber: index + 1,
+                    startColumn: startColumn,
+                    endLineNumber: index + 1,
+                    endColumn: position + tokens[0].length,
+                    message: `"${tokens[0]}" is not a valid MIPS instruction.`,
+                    severity: monaco.MarkerSeverity.Error,
+                });
+            }
+
+            position += tokens[0].length + 1;
+
+            for (let i = 1; i < tokens.length; i++) {
+                const register = tokens[i].replace(/,/, "");
+                if (register.startsWith("#")) return; // Ignore rest of line if comment begins
+                if (!isNaN(register) && Number.isInteger(Number(register))) continue;
+
+                let startPos = line.indexOf(tokens[i], position - 1) + 1;
+                let endPos = startPos + tokens[i].length;
+                if (!validRegisters.has(register) && !labels.has(register)) {
+                    errors.push({
+                        startLineNumber: index + 1,
+                        startColumn: startPos,
+                        endLineNumber: index + 1,
+                        endColumn: endPos,
+                        message: `"${register}" is not a valid MIPS Register or Label.`,
+                        severity: monaco.MarkerSeverity.Error,
+                    });
+                }
+                position += tokens[i].length + 1;
+            }
+        });
+
+        monaco.editor.setModelMarkers(model, "mips", errors);
+        setErrors(errors);
+    }
 
     function toggleBreakpoint(line) {
         setBreakpoints(prev => {
@@ -457,13 +457,21 @@ function Editor({ onPdfOpen, isDarkMode }) {
     }
 
     async function assembleCode() {
+        if (errors.length) {
+            let errorOutput = `Assembly of ${docs[currentDoc].name} failed.\n`;
+            errors.forEach((e) => errorOutput += `Error at line ${e.startLineNumber} column ${e.startColumn}: ${e.message}\n`);
+            setOutput(errorOutput);
+            return;
+        }
         const currentCode = docs[currentDoc].content;
+        const currentFileName = docs[currentDoc].name;
         try {
             setExecutionFinished(false);
             setRegisterValues(dummyRegisterValues);
             setChangedRegisters(new Array(32).fill(false));
             coreRef.current = null; // Reset core
-            await assemble(currentCode, setTextDump, setDataDump, setAssembledCode, setOutput);
+            await assemble(currentCode, currentFileName, setTextDump, setDataDump, setAssembledCode, setOutput);
+            setCurrentTab('execute');
         } catch (error) {
             console.error(error);
         }
