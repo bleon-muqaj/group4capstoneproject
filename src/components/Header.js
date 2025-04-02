@@ -5,7 +5,7 @@ function Header({ toggleTheme, isDarkMode }) {
     const [pdfOpen, setPdfOpen] = useState(false);
     const chapters = [
         { title: "Table of Contents", page: 1 },
-        { title: "Instructions", page: 42 },
+        { title: "Instructions", page: 3 },
         { title: "addi", page: 45 },
         { title: "addiu", page: 46 },
         { title: "addu", page: 48 },

@@ -352,6 +352,62 @@ function Editor({onPdfOpen, isDarkMode}) {
         setCurrentTab('edit');
     }
 
+    function selectCodeExample(event) {
+        const choice = event.target.value; // Get the selected value
+        if (choice === "hello_world") {
+            // console.log("Executing Hello World logic...");
+            const newDoc = {name: `Hello_World.asm`, content:
+                    '.data\n' +
+                    '    message: .asciiz "Hello, World!\\n"\n' +
+                    '\n' +
+                    '.text\n' +
+                    '        # Print the message\n' +
+                    '        li $v0, 4           # Syscall for printing a string\n' +
+                    '        la $a0, message     # Load address of the message into $a0\n' +
+                    '        syscall             # Make syscall to print the string\n' +
+                    '\n' +
+                    '        # Exit the program\n' +
+                    '        li $v0, 10          # Syscall for program exit\n' +
+                    '        syscall             # Make syscall to exit'};
+            setDocs([...docs, newDoc]);
+            setCurrentDoc(docs.length);
+            document.getElementById('example').selectedIndex = 0
+        }
+        else if (choice === "add") {
+            const newDoc = {name: `add.asm`, content:
+                    '.data\n' +
+                    '    sum_msg: .asciiz "Sum: "\n' +
+                    '\n' +
+                    '.text\n' +
+                    '    # Initialize two numbers\n' +
+                    '    li $t0, 10   # First number\n' +
+                    '    li $t1, 5    # Second number\n' +
+                    '\n' +
+                    '    # Perform addition using addiu\n' +
+                    '    addiu $t2, $t0, 5  # $t2 = $t0 + 5\n' +
+                    '\n' +
+                    '    # Print sum message\n' +
+                    '    li $v0, 4\n' +
+                    '    la $a0, sum_msg\n' +
+                    '    syscall\n' +
+                    '\n' +
+                    '    # Print sum result\n' +
+                    '    li $v0, 1\n' +
+                    '    move $a0, $t2\n' +
+                    '    syscall\n' +
+                    '\n' +
+                    '    # Exit program\n' +
+                    '    li $v0, 10\n' +
+                    '    syscall\n'};
+            setDocs([...docs, newDoc]);
+            setCurrentDoc(docs.length);
+            document.getElementById('example').selectedIndex = 0
+        }else {
+            console.log("Unknown selection.");
+        }
+    }
+
+
     return (
         <div style={{
             height: '100vh',
@@ -368,9 +424,25 @@ function Editor({onPdfOpen, isDarkMode}) {
                 flexWrap: 'wrap',
                 flexShrink: 0
             }}>
+                <label htmlFor="example">Code Examples:</label>
+                <select name="example" id="example" style={{marginLeft: '4px'}} onChange={selectCodeExample}>
+                    <option value="" disabled selected hidden>Select An Code Example Here</option>
+                    <option value="hello_world" >Hello World</option>
+                    <option value="add">Add Two Numbers</option>
+                </select>
+            </div>
+
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                flexShrink: 0
+            }}>
                 <button onClick={() => setCurrentTab('edit')}>Edit</button>
                 <button onClick={() => setCurrentTab('execute')}>Execute</button>
             </div>
+
             <div style={{
                 background: isDarkMode ? '#333' : '#f5f5f5',
                 padding: '8px',
