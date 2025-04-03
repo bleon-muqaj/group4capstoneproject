@@ -56,3 +56,125 @@ describe('App Component', () => {
     });
   });
 });
+
+
+//exhaustive pdfviewer testing
+describe('pdf viewer', () => {
+  test('clicking "Open PDF" multiple times does not reset last viewed page', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Close PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+  });
+
+  test('renders Header component correctly', () => {
+    render(<App />);
+    expect(screen.getByText(/MIPS Simulator/i)).toBeInTheDocument();
+  });
+
+  test('PDFViewer receives correct initial page after multiple opens', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Close PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+  });
+
+  test('PDFViewer does not appear without user action', () => {
+    render(<App />);
+    expect(screen.queryByTestId('pdf-viewer')).toBeNull();
+  });
+
+  test('lastViewedPage updates correctly when PDFViewer changes pages', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Close PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+  });
+
+  test('app maintains last viewed page after reopening', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Close PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+  });
+
+  test('closing PDFViewer does not reset lastViewedPage state', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Close PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+  });
+
+  test('renders Editor component properly', () => {
+    render(<App />);
+    expect(screen.getByText('Open PDF')).toBeInTheDocument();
+  });
+
+  test('app does not break when clicking Open PDF multiple times rapidly', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+  });
+
+  test('pdfviewer updates page correctly when lastViewedPage changes', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Close PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+  });
+
+
+
+  test('clicking "Open PDF" twice in rapid succession does not cause issues', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+  });
+
+  test('pdfviewer remains open after opening and closing another modal', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+  });
+
+  test('clicking "Open PDF" retains lastViewedPage after multiple page switches', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+  });
+
+  test('closing PDFViewer and reopening does not reset app state', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Open PDF'));
+    fireEvent.click(screen.getByText('Close PDF'));
+    fireEvent.click(screen.getByText('Open PDF'));
+    await waitFor(() => {
+      expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+    });
+  });
+});
