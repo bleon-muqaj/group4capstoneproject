@@ -94,3 +94,99 @@ html, body, #root, .App {
   background-color: #ddd;
   color: black;
 }
+
+/* General button styling */
+button {
+  background-color: #3a3a3a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  margin: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* Light mode override */
+.light-mode button {
+  background-color: #d0d0d0;
+  color: black;
+}
+
+/* Hover effect */
+button:hover {
+  background-color: #5a5a5a;
+}
+
+.light-mode button:hover {
+  background-color: #bcbcbc;
+}
+
+/* Optional: subtle "press" effect */
+button:active {
+  transform: scale(0.97);
+}
+
+select {
+  background-color: #3a3a3a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+select:hover {
+  background-color: #5a5a5a;
+}
+
+.light-mode select {
+  background-color: #d0d0d0;
+  color: black;
+}
+
+.light-mode select:hover {
+  background-color: #bcbcbc;
+}
+.header-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-right: 16px;
+  white-space: nowrap;
+  color: inherit;
+}
+.example-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  font-size: 13px;
+}
+
+.example-select-wrapper select {
+  background-color: #3a3a3a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.App.light-mode .example-select-wrapper select {
+  background-color: #d0d0d0;
+  color: black;
+}
+
+.example-select-wrapper select:hover {
+  background-color: #5a5a5a;
+}
+
+.App.light-mode .example-select-wrapper select:hover {
+  background-color: #bcbcbc;
+}
+
+
