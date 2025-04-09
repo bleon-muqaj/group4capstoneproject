@@ -6,10 +6,12 @@ import './App.css';
 
 function App() {
     const [isPdfOpen, setIsPdfOpen] = useState(false);
-    const [lastViewedPage, setLastViewedPage] = useState(1)
+    const [lastViewedPage, setLastViewedPage] = useState(1);
     const [isDarkMode, setIsDarkMode] = useState(() => {
         return localStorage.getItem("theme") === "light" ? false : true;
     });
+
+    const [fontSize, setFontSize] = useState(14); // NEW
 
     useEffect(() => {
         localStorage.setItem("theme", isDarkMode ? "dark" : "light");
@@ -19,15 +21,22 @@ function App() {
         setIsDarkMode(prevMode => !prevMode);
     };
 
-
-
     return (
         <div className={`App ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
-            <Header toggleTheme={toggleTheme} isDarkMode={isDarkMode} />
-            <Editor onPdfOpen={(page) => {
-                setLastViewedPage(page || lastViewedPage);
-                setIsPdfOpen(true);
-            }} isDarkMode={isDarkMode} />
+            <Header
+                toggleTheme={toggleTheme}
+                isDarkMode={isDarkMode}
+                fontSize={fontSize}              // NEW
+                setFontSize={setFontSize}        // NEW
+            />
+            <Editor
+                fontSize={fontSize}              // NEW
+                onPdfOpen={(page) => {
+                    setLastViewedPage(page || lastViewedPage);
+                    setIsPdfOpen(true);
+                }}
+                isDarkMode={isDarkMode}
+            />
             {isPdfOpen && (
                 <PDFViewer
                     onClose={() => setIsPdfOpen(false)}
