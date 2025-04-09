@@ -131,7 +131,7 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function Editor({onPdfOpen, isDarkMode}) {
+function Editor({fontSize, onPdfOpen, isDarkMode}) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -751,9 +751,9 @@ function Editor({onPdfOpen, isDarkMode}) {
                 flexWrap: 'wrap',
                 flexShrink: 0
             }}>
-                <label htmlFor="example">Code Examples:</label>
+
                 <select name="example" id="example" style={{marginLeft: '4px'}} onChange={selectCodeExample}>
-                    <option value="" disabled selected hidden>Select An Code Example Here</option>
+                    <option value="" disabled selected hidden>Select a Code Example Here</option>
                     <option value="hello_world">Hello World</option>
                     <option value="add">Add Two Numbers</option>
                 </select>
@@ -895,7 +895,7 @@ function Editor({onPdfOpen, isDarkMode}) {
                         theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
                         onChange={editorChange}
-                        options={{automaticLayout: true}}
+                        options={{automaticLayout: true, fontSize: fontSize}}
                         onMount={editorMount}
                     />
                 </div>
