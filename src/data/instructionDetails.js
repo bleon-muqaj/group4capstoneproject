@@ -22,7 +22,7 @@ export const instructionDetails = {
     and: {//not implemented in mimic
         usage: 'and $d, $s, $t',
         description: 'Performs a bitwise AND on registers $s and $t, storing the result in $d.',
-        pdfPage: 43,
+        pdfPage: 54,
     },
     or: {
         usage: 'or $d, $s, $t',
