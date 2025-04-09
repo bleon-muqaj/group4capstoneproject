@@ -38,8 +38,8 @@ async function assemble(currentCode, currentFileName, setTextDump, setDataDump, 
     setAssembledCode(assemble_result);
     setOutput(`Assembly of ${currentFileName} was successful.\nYou can now run your code.\n`);
 }
-
-async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+/*
+async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters, executionDelay){
     let consoleOutput = '';
 
     let core = new Mips32Core();
@@ -79,6 +79,7 @@ async function run(assembledCode, setRegisterValues, setOutput, setTextDump, set
                 consoleOutput += 'Unknown syscall\n';
             }
         }
+        if (executionDelay > 0) await sleep(executionDelay);
     }
 
     const newRegisters = [...core.dump_registers()];
@@ -88,7 +89,7 @@ async function run(assembledCode, setRegisterValues, setOutput, setTextDump, set
         return newRegisters;
     });
     setOutput(consoleOutput);
-}
+}*/
 
 
 const dummyRegisterValues = new Array(32).fill(0);
@@ -124,7 +125,9 @@ const validRegisters = new Set([
 ]);
 
 const labels = new Set();
-
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 function Editor({ onPdfOpen, isDarkMode }) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
@@ -146,6 +149,18 @@ function Editor({ onPdfOpen, isDarkMode }) {
     const [breakpoints, setBreakpoints] = useState(new Set());
     const [currentLine, setCurrentLine] = useState(null);
     const coreRef = useRef(null); // new
+    const [executionDelay, setExecutionDelay] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const [isRunning, setIsRunning] = useState(false);
+    const isPausedRef = useRef(isPaused);
+    const isRunningRef = useRef(isRunning);
+    const [allBreakpointsEnabled, setAllBreakpointsEnabled] = useState(false);
+    const [runAllowed, setRunAllowed] = useState(true);
+
+    useEffect(() => {
+        isPausedRef.current = isPaused;
+        isRunningRef.current = isRunning;
+    }, [isPaused, isRunning]);
 
     useEffect(() => {
         console.log('Data Dump', dataDump)
@@ -174,8 +189,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
         const errors = [];
         labels.clear();
 
-        lines.forEach((line, index) => { // collect all labels before underlining
-            // console.log("Collected labels:", Array.from(labels));
+        lines.forEach((line, index) => {
             const tokens = line.trim().split(/\s+/);
             if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
                 if (tokens[0].endsWith(":")) {
@@ -188,7 +202,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
 
             const trimmed = line.trim();
             if (trimmed === "") return;
-            if (trimmed.startsWith("#")) return; // Entire comment line
+            if (trimmed.startsWith("#")) return;
 
             const tokens = line.trim().split(/\s+/);
             const match = line.match(/^\s*/);
@@ -203,8 +217,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
             }
 
             if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-                if (tokens[0].startsWith("#")) return; // Comment after code
-
+                if (tokens[0].startsWith("#")) return;
                 errors.push({
                     startLineNumber: index + 1,
                     startColumn: startColumn,
@@ -219,7 +232,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
 
             for (let i = 1; i < tokens.length; i++) {
                 const register = tokens[i].replace(/,/, "");
-                if (register.startsWith("#")) return; // Ignore rest of line if comment begins
+                if (register.startsWith("#")) return;
                 if (!isNaN(register) && Number.isInteger(Number(register))) continue;
 
                 let startPos = line.indexOf(tokens[i], position - 1) + 1;
@@ -269,6 +282,78 @@ function Editor({ onPdfOpen, isDarkMode }) {
         return str || '[Empty string]';
     }
 
+    async function run() {
+        if (!assembledCode) return;
+
+        setPreviousRegisters(registerValues);
+        setExecutionFinished(false);
+        setOutput('');
+        setRegisterValues(dummyRegisterValues);
+        setChangedRegisters(new Array(32).fill(false));
+
+        let core = new Mips32Core();
+        core.load_text(assembledCode.text());
+        core.load_data(assembledCode.data());
+
+        coreRef.current = core;
+        lineCounterRef.current = 0;
+        core._dataBytes = assembledCode.data();
+
+        const step = async () => {
+            if (executionFinished || !isRunningRef.current) return;
+            if (isPausedRef.current) {
+                requestAnimationFrame(step);
+                return;
+            }
+
+            const isSyscall = core.tick();
+            lineCounterRef.current++;
+            setCurrentLine(lineCounterRef.current);
+
+            const regs = core.dump_registers();
+            const v0 = regs[2];
+            const a0 = regs[4];
+            let newOutput = '';
+
+            if (isSyscall) {
+                if (v0 === 1) {
+                    newOutput += a0.toString() + '\n';
+                } else if (v0 === 4) {
+                    newOutput += readStringFromMemory(a0, core._dataBytes || []);
+                } else if (v0 === 10) {
+                    newOutput += 'Exit\n';
+                    setExecutionFinished(true);
+                    setIsRunning(false);
+                    isRunningRef.current = false;
+                    setRunAllowed(true);
+                    return;
+                } else {
+                    newOutput += 'Unknown syscall\n';
+                }
+                setOutput(prev => prev + newOutput);
+            }
+
+            const newRegisters = [...regs];
+            setRegisterValues(prev => {
+                const changed = newRegisters.map((val, i) => val !== prev[i]);
+                setChangedRegisters(changed);
+                return newRegisters;
+            });
+
+            if (executionDelay > 0) {
+                await sleep(executionDelay);
+            }
+
+            requestAnimationFrame(step);
+        };
+        setIsRunning(true);
+        isRunningRef.current = true;
+        setIsPaused(false);
+        isPausedRef.current = false;
+        step();
+    }
+
+
 
     async function runToNextBreakpoint() {
         if (!assembledCode || executionFinished) return;
@@ -284,63 +369,73 @@ function Editor({ onPdfOpen, isDarkMode }) {
         }
 
         const core = coreRef.current;
-        let consoleOutput = '';
         const breakSet = new Set(breakpoints);
 
-        for (let steps = 0; steps < 10000; steps++) {
+        const step = async () => {
+            if (executionFinished || !isRunningRef.current) return;
+            if (isPausedRef.current) {
+                requestAnimationFrame(step);
+                return;
+            }
+
             const currentIndex = lineCounterRef.current;
 
             if (breakSet.has(currentIndex) && currentIndex !== currentLine) {
                 setCurrentLine(currentIndex);
-                break;
+                setIsRunning(false);
+                isRunningRef.current = false;
+                setRunAllowed(false);
+                return;
             }
 
             const isSyscall = core.tick();
-
             lineCounterRef.current++;
+            setCurrentLine(lineCounterRef.current);
 
             const regs = core.dump_registers();
             const v0 = regs[2];
             const a0 = regs[4];
+            let newOutput = '';
 
             if (isSyscall) {
                 if (v0 === 1) {
-                    consoleOutput += a0.toString() + '\n';
+                    newOutput += a0.toString() + '\n';
                 } else if (v0 === 4) {
-                    const heap = core._dataBytes || new Uint8Array();
-                    const offset = a0 - 0x10010000;
-                    if (offset < 0 || offset >= heap.length) {
-                        consoleOutput += '[Invalid address]\n';
-                    } else {
-                        let str = '';
-                        for (let i = offset; i < heap.length; i++) {
-                            const byte = heap[i];
-                            if (byte === 0) break;
-                            str += String.fromCharCode(byte);
-                        }
-                        consoleOutput += str || '[Empty string]';
-                    }
+                    newOutput += readStringFromMemory(a0, core._dataBytes || []);
                 } else if (v0 === 10) {
-                    consoleOutput += 'Exit\n';
+                    newOutput += 'Exit\n';
                     setExecutionFinished(true);
-                    break;
+                    setIsRunning(false);
+                    isRunningRef.current = false;
+                    return;
                 } else {
-                    consoleOutput += 'Unknown syscall\n';
+                    newOutput += 'Unknown syscall\n';
                 }
+                setOutput(prev => prev + newOutput);
             }
 
-            setCurrentLine(lineCounterRef.current);
-        }
+            const newRegisters = [...regs];
+            setRegisterValues(prev => {
+                const changed = newRegisters.map((val, i) => val !== prev[i]);
+                setChangedRegisters(changed);
+                return newRegisters;
+            });
 
-        setOutput(prev => prev + consoleOutput);
+            if (executionDelay > 0) {
+                await sleep(executionDelay);
+            }
 
-        const finalRegs = [...core.dump_registers()];
-        setRegisterValues(prev => {
-            const changed = finalRegs.map((val, i) => val !== prev[i]);
-            setChangedRegisters(changed);
-            return finalRegs;
-        });
+            requestAnimationFrame(step);
+        };
+        setIsRunning(true);
+        isRunningRef.current = true;
+
+        setIsPaused(false);
+        isPausedRef.current = false;
+
+        step();
     }
+
 
     async function stepInstruction() {
         if (!assembledCode || executionFinished) return;
@@ -472,6 +567,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
             coreRef.current = null; // Reset core
             await assemble(currentCode, currentFileName, setTextDump, setDataDump, setAssembledCode, setOutput);
             setCurrentTab('execute');
+            setRunAllowed(true);
         } catch (error) {
             console.error(error);
         }
@@ -485,8 +581,8 @@ function Editor({ onPdfOpen, isDarkMode }) {
         }
         setPreviousRegisters(registerValues);
         try {
-            await run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, registerValues, setChangedRegisters);
-            setAssembledCode(null);
+            await run();
+
         } catch (error) {
             console.error(error);
         }
@@ -597,6 +693,24 @@ function Editor({ onPdfOpen, isDarkMode }) {
             console.log("Unknown selection.");
         }
     }
+    function toggleAllBreakpoints() {
+        if (!assembledCode) return;
+
+        const lines = textDump.trim().split('\n');
+        const totalLines = lines.length;
+
+        if (allBreakpointsEnabled) {
+            setBreakpoints(new Set());
+            setAllBreakpointsEnabled(false);
+        } else {
+            const newBreakpoints = new Set();
+            for (let i = 0; i < totalLines; i++) {
+                newBreakpoints.add(i);
+            }
+            setBreakpoints(newBreakpoints);
+            setAllBreakpointsEnabled(true);
+        }
+    }
 
 
     return (
@@ -660,16 +774,83 @@ function Editor({ onPdfOpen, isDarkMode }) {
                     </span>
                 ))}
                 <button onClick={createDoc}>New File</button>
-                <button onClick={assembleCode}>Assemble</button>
-                <button onClick={runCode} disabled={!assembledCode || executionFinished}>Run</button>
-                <button onClick={runToNextBreakpoint} disabled={!assembledCode || executionFinished}>Run to Breakpoint</button>
-                <button onClick={stepInstruction} disabled={!assembledCode || executionFinished}>Step</button>
+                <button onClick={assembleCode} disabled={isRunning || isPaused}>
+                    Assemble
+                </button>
+                <button
+                    onClick={run}
+                    disabled={!assembledCode || executionFinished || isRunning || !runAllowed}
+                >
+                    Run
+                </button>
+                <button
+                    onClick={runToNextBreakpoint}
+                    disabled={!assembledCode || executionFinished || isRunning}
+                >
+                    Run to Breakpoint
+                </button>
+                <button
+                    onClick={() => {
+                        setIsPaused(true);
+                        isPausedRef.current = true;
+                    }}
+                    disabled={!isRunning || isPaused}
+                >
+                    Pause
+                </button>
+                <button
+                    onClick={() => {
+                        setIsPaused(false);
+                        isPausedRef.current = false;
+                    }}
+                    disabled={!isRunning || !isPaused}
+                >
+                    Resume
+                </button>
+                <button
+                    onClick={() => {
+                        setIsRunning(false);
+                        isRunningRef.current = false;
 
+                        setIsPaused(false);
+                        isPausedRef.current = false;
+
+                        setExecutionFinished(true);
+                        setRunAllowed(true);
+                    }}
+                    disabled={!isRunning}
+                >
+                    Stop
+                </button>
+
+                <button
+                    onClick={stepInstruction}
+                    disabled={!assembledCode || executionFinished || isRunning}
+                >
+                    Step
+                </button>
+                <button
+                    onClick={toggleAllBreakpoints}
+                    disabled={!assembledCode}
+                >
+                    {allBreakpointsEnabled ? 'Clear All Breakpoints' : 'Set All Breakpoints'}
+                </button>
                 <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
                     .asm
                 </button>
                 <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
                 <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
+                <label htmlFor="speedSlider">Execution Speed: </label>
+                <input
+                    id="speedSlider"
+                    type="range"
+                    min="0"
+                    max="1000"
+                    step="100"
+                    value={executionDelay}
+                    onChange={(e) => setExecutionDelay(Number(e.target.value))}
+                />
+                <span>{executionDelay} ms</span>
             </div>
 
             <div style={{
