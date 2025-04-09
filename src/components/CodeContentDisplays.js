@@ -1,10 +1,10 @@
 import React from 'react';
 
-function toHexString(number) {
+ export function toHexString(number) {
     const hexString = (number >>> 0).toString(16);
     return hexString.padStart(8, '0');
 }
-function textToAscii(hexString) {
+export function textToAscii(hexString) {
     if (!hexString || hexString.length !== 8) return '';
     let ascii = '';
     for (let i = 0; i < 8; i += 2) {
@@ -14,7 +14,7 @@ function textToAscii(hexString) {
     }
     return ascii;
 }
-function decodeInstruction(hex) {
+export function decodeInstruction(hex) {
     if (!hex || hex.length !== 8) return '';
     const word = parseInt(hex, 16);
     const opcode = (word >>> 26) & 0x3f;
@@ -88,7 +88,7 @@ function decodeInstruction(hex) {
     return `Unknown opcode 0x${opcode.toString(16)}`;
 }
 
-function regName(index) {
+export function regName(index) {
     const names = [
         'zero', 'at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
         't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
@@ -98,7 +98,7 @@ function regName(index) {
     return names[index] || `r${index}`;
 }
 
-function signExtend(n) {
+export function signExtend(n) {
     return n & 0x8000 ? n - 0x10000 : n;
 }
 
