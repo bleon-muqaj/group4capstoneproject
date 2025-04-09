@@ -38,6 +38,7 @@ async function assemble(currentCode, currentFileName, setTextDump, setDataDump, 
     setAssembledCode(assemble_result);
     setOutput(`Assembly of ${currentFileName} was successful.\nYou can now run your code.\n`);
 }
+
 /*
 async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters, executionDelay){
     let consoleOutput = '';
@@ -125,10 +126,12 @@ const validRegisters = new Set([
 ]);
 
 const labels = new Set();
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-function Editor({ onPdfOpen, isDarkMode }) {
+
+function Editor({onPdfOpen, isDarkMode}) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -263,6 +266,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
             return updated;
         });
     }
+
     function readStringFromMemory(startAddress, heapBytes) {
         const baseAddress = 0x10010000;
         const heapOffset = startAddress - baseAddress;
@@ -352,7 +356,6 @@ function Editor({ onPdfOpen, isDarkMode }) {
         isPausedRef.current = false;
         step();
     }
-
 
 
     async function runToNextBreakpoint() {
@@ -600,6 +603,21 @@ function Editor({ onPdfOpen, isDarkMode }) {
         URL.revokeObjectURL(fileURL);
     }
 
+    function handleImport(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const fileReader = new FileReader();
+            fileReader.onload = function (event) {
+                const newDoc = {name: file.name, content: event.target.result};
+                const updatedDocs = docs.slice();
+                updatedDocs.push(newDoc);
+                setDocs(updatedDocs);
+                setCurrentDoc(updatedDocs.length - 1);
+            };
+            fileReader.readAsText(file);
+        }
+    }
+
     function createDoc() {
         const newDoc = {name: `File${docs.length + 1}.asm`, content: '.data\n\n.text\n'};
         setDocs([...docs, newDoc]);
@@ -643,7 +661,8 @@ function Editor({ onPdfOpen, isDarkMode }) {
         const choice = event.target.value; // Get the selected value
         if (choice === "hello_world") {
             // console.log("Executing Hello World logic...");
-            const newDoc = {name: `Hello_World.asm`, content:
+            const newDoc = {
+                name: `Hello_World.asm`, content:
                     '.data\n' +
                     '    message: .asciiz "Hello, World!\\n"\n' +
                     '\n' +
@@ -655,13 +674,14 @@ function Editor({ onPdfOpen, isDarkMode }) {
                     '\n' +
                     '        # Exit the program\n' +
                     '        li $v0, 10          # Syscall for program exit\n' +
-                    '        syscall             # Make syscall to exit'};
+                    '        syscall             # Make syscall to exit'
+            };
             setDocs([...docs, newDoc]);
             setCurrentDoc(docs.length);
             document.getElementById('example').selectedIndex = 0
-        }
-        else if (choice === "add") {
-            const newDoc = {name: `add.asm`, content:
+        } else if (choice === "add") {
+            const newDoc = {
+                name: `add.asm`, content:
                     '.data\n' +
                     '    sum_msg: .asciiz "Sum: "\n' +
                     '\n' +
@@ -685,14 +705,16 @@ function Editor({ onPdfOpen, isDarkMode }) {
                     '\n' +
                     '    # Exit program\n' +
                     '    li $v0, 10\n' +
-                    '    syscall\n'};
+                    '    syscall\n'
+            };
             setDocs([...docs, newDoc]);
             setCurrentDoc(docs.length);
             document.getElementById('example').selectedIndex = 0
-        }else {
+        } else {
             console.log("Unknown selection.");
         }
     }
+
     function toggleAllBreakpoints() {
         if (!assembledCode) return;
 
@@ -732,7 +754,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
                 <label htmlFor="example">Code Examples:</label>
                 <select name="example" id="example" style={{marginLeft: '4px'}} onChange={selectCodeExample}>
                     <option value="" disabled selected hidden>Select An Code Example Here</option>
-                    <option value="hello_world" >Hello World</option>
+                    <option value="hello_world">Hello World</option>
                     <option value="add">Add Two Numbers</option>
                 </select>
             </div>
@@ -835,6 +857,12 @@ function Editor({ onPdfOpen, isDarkMode }) {
                 >
                     {allBreakpointsEnabled ? 'Clear All Breakpoints' : 'Set All Breakpoints'}
                 </button>
+                <button>
+                    <label style={{cursor: 'pointer'}}>
+                        Import .asm
+                        <input type="file" accept=".asm" onChange={handleImport} style={{display: 'none'}}/>
+                    </label>
+                </button>
                 <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
                     .asm
                 </button>
@@ -895,7 +923,8 @@ function Editor({ onPdfOpen, isDarkMode }) {
                             />
                             <button onClick={() => setShowDataAscii(prev => !prev)}>
                                 Show as {showDataAscii ? 'Hex' : 'ASCII'}
-                            </button> </>) :
+                            </button>
+                        </>) :
                         <p>Assemble your code to view text and data content.</p>}
                 </div>
                 <div style={{
