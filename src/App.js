@@ -10,6 +10,7 @@ function App() {
     const [isDarkMode, setIsDarkMode] = useState(() => {
         return localStorage.getItem("theme") === "light" ? false : true;
     });
+    const [showLineNumbers, setShowLineNumbers] = useState(true);
 
     useEffect(() => {
         localStorage.setItem("theme", isDarkMode ? "dark" : "light");
@@ -23,11 +24,11 @@ function App() {
 
     return (
         <div className={`App ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
-            <Header toggleTheme={toggleTheme} isDarkMode={isDarkMode} />
+            <Header toggleTheme={toggleTheme} isDarkMode={isDarkMode} onToggleLineNumbers={setShowLineNumbers} />
             <Editor onPdfOpen={(page) => {
                 setLastViewedPage(page || lastViewedPage);
                 setIsPdfOpen(true);
-            }} isDarkMode={isDarkMode} />
+            }} isDarkMode={isDarkMode} showLineNumbers={showLineNumbers} />
             {isPdfOpen && (
                 <PDFViewer
                     onClose={() => setIsPdfOpen(false)}

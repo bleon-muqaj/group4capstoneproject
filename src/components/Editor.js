@@ -125,7 +125,7 @@ const validRegisters = new Set([
 
 const labels = new Set();
 
-function Editor({ onPdfOpen, isDarkMode }) {
+function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -145,9 +145,21 @@ function Editor({ onPdfOpen, isDarkMode }) {
     const [errors, setErrors] = useState([]);
     const [breakpoints, setBreakpoints] = useState(new Set());
     const [currentLine, setCurrentLine] = useState(null);
-    const [lineNumbersVisible, setLineNumbersVisible] = useState(true);
+    // const [lineNumbersVisible, setLineNumbersVisible] = useState(true);
     const editorRef = useRef(null);
     const coreRef = useRef(null); // new
+
+    const editorDidMount = (editor) => {
+        editorRef.current = editor;
+    };
+
+    useEffect(() => {
+        if (editorRef.current) {
+            editorRef.current.updateOptions({
+                lineNumbers: showLineNumbers ? 'on' : 'off',
+            });
+        }
+    }, [showLineNumbers]);
 
     useEffect(() => {
         console.log('Data Dump', dataDump)
@@ -412,7 +424,7 @@ function Editor({ onPdfOpen, isDarkMode }) {
 
     function editorMount(editor, monaco) {
 
-        editorRef.current = editor;
+        // editorRef.current = editor;
 
         editor.onDidChangeModelContent(() => {
             validateCode(editor, monaco);
@@ -603,17 +615,17 @@ function Editor({ onPdfOpen, isDarkMode }) {
         }
     }
 
-    // Toggle function to update line number visibility.
-    function toggleLineNumbers() {
-        // Determine the new value for lineNumbers.
-        const newValue = lineNumbersVisible ? "off" : "on";
-        // Update the state.
-        setLineNumbersVisible(!lineNumbersVisible);
-        // Use the stored editor instance to update options.
-        if (editorRef.current) {
-            editorRef.current.updateOptions({ lineNumbers: newValue });
-        }
-    }
+    // // Toggle function to update line number visibility.
+    // function toggleLineNumbers() {
+    //     // Determine the new value for lineNumbers.
+    //     const newValue = lineNumbersVisible ? "off" : "on";
+    //     // Update the state.
+    //     setLineNumbersVisible(!lineNumbersVisible);
+    //     // Use the stored editor instance to update options.
+    //     if (editorRef.current) {
+    //         editorRef.current.updateOptions({ lineNumbers: newValue });
+    //     }
+    // }
 
 
     return (
@@ -632,6 +644,9 @@ function Editor({ onPdfOpen, isDarkMode }) {
                 flexWrap: 'wrap',
                 flexShrink: 0
             }}>
+                {/*<button onClick={toggleLineNumbers}>*/}
+                {/*{lineNumbersVisible ? 'Hide Line Numbers' : 'Show Line Numbers'}*/}
+                {/*</button>*/}
                 <label htmlFor="example">Code Examples:</label>
                 <select name="example" id="example" style={{marginLeft: '4px'}} onChange={selectCodeExample}>
                     <option value="" disabled selected hidden>Select An Code Example Here</option>
@@ -649,9 +664,6 @@ function Editor({ onPdfOpen, isDarkMode }) {
             }}>
                 <button onClick={() => setCurrentTab('edit')}>Edit</button>
                 <button onClick={() => setCurrentTab('execute')}>Execute</button>
-                <button onClick={toggleLineNumbers}>
-                    {lineNumbersVisible ? 'Hide Line Numbers' : 'Show Line Numbers'}
-                </button>
             </div>
 
             <div style={{
@@ -706,8 +718,10 @@ function Editor({ onPdfOpen, isDarkMode }) {
                         theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
                         onChange={editorChange}
-                        options={{automaticLayout: true}}
-                        onMount={editorMount}
+                        options={{automaticLayout: true,
+                            lineNumbers: showLineNumbers ? 'on' : 'off',}}
+                        editorDidMount={editorDidMount}
+                        // onMount={editorMount}
                     />
                 </div>
                 <div style={{

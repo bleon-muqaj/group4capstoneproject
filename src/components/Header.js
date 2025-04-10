@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PDFViewer from "./PDFViewer";
 
-function Header({ toggleTheme, isDarkMode }) {
+function Header({ toggleTheme, isDarkMode, onToggleLineNumbers}) {
     const [pdfOpen, setPdfOpen] = useState(false);
     const chapters = [
         { title: "Table of Contents", page: 3 },
@@ -21,6 +21,16 @@ function Header({ toggleTheme, isDarkMode }) {
         { title: "xor", page: 456 },
     ];
 
+    const [showLineNumbers, setShowLineNumbers] = useState(true);
+
+    const handleToggle = () => {
+        const newValue = !showLineNumbers;
+        setShowLineNumbers(newValue);
+        if (onToggleLineNumbers) {
+            onToggleLineNumbers(newValue);
+        }
+    };
+
     return (
         <header className="header">
             <div className="header-title">MIPS Simulator</div>
@@ -29,6 +39,9 @@ function Header({ toggleTheme, isDarkMode }) {
             </button>
             <button onClick={toggleTheme} className="theme-toggle-button">
                 {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+            </button>
+            <button onClick={handleToggle} className="theme-toggle-button">
+                {showLineNumbers ? 'Hide Line Numbers' : 'Show Line Numbers'}
             </button>
             {pdfOpen && <PDFViewer chapters={chapters} initialPage={1} onClose={() => setPdfOpen(false)} />}
         </header>
