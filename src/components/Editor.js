@@ -759,127 +759,169 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
                 </select>
             </div>
 
+
+            {/*EDIT AND EXECUTE BUTTON*/}
             <div style={{
                 background: isDarkMode ? '#333' : '#f5f5f5',
                 padding: '8px',
                 display: 'flex',
                 flexWrap: 'wrap',
-                flexShrink: 0
+                flexShrink: 0,
+                gap: '12px', //
+                alignItems: 'center' //
             }}>
-                <button onClick={() => setCurrentTab('edit')}>Edit</button>
-                <button onClick={() => setCurrentTab('execute')}>Execute</button>
+                {/* edit button */}
+                <button
+                    onClick={() => setCurrentTab('edit')}
+                    style={{
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        padding: '8px 16px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center'
+                    }}>
+                    <i className="fas fa-edit" style={{ marginRight: '5px' }}></i>
+                    Edit
+                </button>
+
+                {/* execute button */}
+                <button
+                    onClick={() => setCurrentTab('execute')}
+                    style={{
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        padding: '8px 16px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center'
+                    }}>
+                    <i className="fas fa-play" style={{ marginRight: '5px' }}></i>
+                    Execute
+                </button>
             </div>
+            {/*EDIT AND EXECUTE END-*/}
+
+            {/*BUTTONS START (run,import,...*/}
 
             <div style={{
-                background: isDarkMode ? '#333' : '#f5f5f5',
-                padding: '8px',
                 display: 'flex',
                 flexWrap: 'wrap',
-                flexShrink: 0
+                gap: '12px',
+                alignItems: 'center'
             }}>
-                {docs.map((doc, i) => (
-                    <span key={i} style={{marginRight: '4px'}}>
-                        {editingDoc === i ? (
+
+                {/* Group 1: File actions */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                    {/* new file button */}
+                    <button onClick={createDoc}>
+                        <i className="fas fa-file-alt" style={{ marginRight: '5px' }}></i>
+                        New File
+                    </button>
+
+                    {/* import file button */}
+                    <button>
+                        <label style={{ cursor: 'pointer' }}>
+                            <i className="fas fa-upload" style={{ marginRight: '5px' }}></i>
+                            Import .asm
+                            <input type="file" accept=".asm" onChange={handleImport} style={{ display: 'none' }} />
+                        </label>
+                    </button>
+
+                    {/* download file button */}
+                    <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>
+                        <i className="fas fa-download" style={{ marginRight: '5px' }}></i>
+                        Download .asm
+                    </button>
+                </div>
+
+                {/* Group 2 - assemble and run  */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={assembleCode} disabled={isRunning || isPaused}>
+                        <i className="fas fa-cogs" style={{ marginRight: '5px' }}></i>
+                        Assemble
+                    </button>
+                    <button onClick={run} disabled={!assembledCode || executionFinished || isRunning || !runAllowed}>
+                        <i className="fas fa-play" style={{ marginRight: '5px' }}></i>
+                        Run
+                    </button>
+                    <button onClick={stepInstruction} disabled={!assembledCode || executionFinished || isRunning}>
+                        <i className="fas fa-step-forward" style={{ marginRight: '5px' }}></i>
+                        Step
+                    </button>
+                </div>
+
+                {/* Group 3 - execution flow */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={runToNextBreakpoint} disabled={!assembledCode || executionFinished || isRunning}>
+                        <i className="fas fa-fast-forward" style={{ marginRight: '5px' }}></i>
+                        Run to Breakpoint
+                    </button>
+                    <button onClick={() => { setIsPaused(true); isPausedRef.current = true; }} disabled={!isRunning || isPaused}>
+                        <i className="fas fa-pause" style={{ marginRight: '5px' }}></i>
+                        Pause
+                    </button>
+                    <button onClick={() => { setIsPaused(false); isPausedRef.current = false; }} disabled={!isRunning || !isPaused}>
+                        <i className="fas fa-play" style={{ marginRight: '5px' }}></i>
+                        Resume
+                    </button>
+                    <button onClick={() => {
+                        setIsRunning(false);
+                        isRunningRef.current = false;
+                        setIsPaused(false);
+                        isPausedRef.current = false;
+                        setExecutionFinished(true);
+                        setRunAllowed(true);
+                    }} disabled={!isRunning}>
+                        <i className="fas fa-stop" style={{ marginRight: '5px' }}></i>
+                        Stop
+                    </button>
+                </div>
+
+                {/* Group 4 - breakpoint and download */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={toggleAllBreakpoints} disabled={!assembledCode}>
+                        {allBreakpointsEnabled ? (
                             <>
-                                <input value={docRename} onChange={e => setDocRename(e.target.value)}
-                                       style={{marginRight: '2px'}}/>
-                                <button onClick={commitRename}>OK</button>
-                                <button onClick={cancelRename}>Cancel</button>
+                                <i className="fas fa-bomb" style={{ marginRight: '5px' }}></i>
+                                Clear All Breakpoints
                             </>
                         ) : (
                             <>
-                                <button onClick={() => selectDoc(i)}>{doc.name}</button>
-                                <button onClick={() => removeDoc(i)}>x</button>
-                                <button onClick={() => initiateRename(i)}>Rename</button>
+                                <i className="fas fa-bomb" style={{ marginRight: '5px' }}></i>
+                                Set All Breakpoints
                             </>
                         )}
-                    </span>
-                ))}
-                <button onClick={createDoc}>New File</button>
-                <button onClick={assembleCode} disabled={isRunning || isPaused}>
-                    Assemble
-                </button>
-                <button
-                    onClick={run}
-                    disabled={!assembledCode || executionFinished || isRunning || !runAllowed}
-                >
-                    Run
-                </button>
-                <button
-                    onClick={runToNextBreakpoint}
-                    disabled={!assembledCode || executionFinished || isRunning}
-                >
-                    Run to Breakpoint
-                </button>
-                <button
-                    onClick={() => {
-                        setIsPaused(true);
-                        isPausedRef.current = true;
-                    }}
-                    disabled={!isRunning || isPaused}
-                >
-                    Pause
-                </button>
-                <button
-                    onClick={() => {
-                        setIsPaused(false);
-                        isPausedRef.current = false;
-                    }}
-                    disabled={!isRunning || !isPaused}
-                >
-                    Resume
-                </button>
-                <button
-                    onClick={() => {
-                        setIsRunning(false);
-                        isRunningRef.current = false;
+                    </button>
+                    <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>
+                        <i className="fas fa-download" style={{ marginRight: '5px' }}></i>
+                        Download .data
+                    </button>
+                    <button onClick={() => handleDownload(textDump, "text_dump.txt")}>
+                        <i className="fas fa-download" style={{ marginRight: '5px' }}></i>
+                        Download .text
+                    </button>
+                </div>
 
-                        setIsPaused(false);
-                        isPausedRef.current = false;
-
-                        setExecutionFinished(true);
-                        setRunAllowed(true);
-                    }}
-                    disabled={!isRunning}
-                >
-                    Stop
-                </button>
-
-                <button
-                    onClick={stepInstruction}
-                    disabled={!assembledCode || executionFinished || isRunning}
-                >
-                    Step
-                </button>
-                <button
-                    onClick={toggleAllBreakpoints}
-                    disabled={!assembledCode}
-                >
-                    {allBreakpointsEnabled ? 'Clear All Breakpoints' : 'Set All Breakpoints'}
-                </button>
-                <button>
-                    <label style={{cursor: 'pointer'}}>
-                        Import .asm
-                        <input type="file" accept=".asm" onChange={handleImport} style={{display: 'none'}}/>
-                    </label>
-                </button>
-                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
-                    .asm
-                </button>
-                <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
-                <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
-                <label htmlFor="speedSlider">Execution Speed: </label>
-                <input
-                    id="speedSlider"
-                    type="range"
-                    min="0"
-                    max="1000"
-                    step="100"
-                    value={executionDelay}
-                    onChange={(e) => setExecutionDelay(Number(e.target.value))}
-                />
-                <span>{executionDelay} ms</span>
+                {/* Group 5 speed slider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <label htmlFor="speedSlider">Execution Speed:</label>
+                    <input
+                        id="speedSlider"
+                        type="range"
+                        min="0"
+                        max="1000"
+                        step="100"
+                        value={executionDelay}
+                        onChange={(e) => setExecutionDelay(Number(e.target.value))}
+                    />
+                    <span>{executionDelay} ms</span>
+                </div>
             </div>
+            {/*BUTTONS END ^^*/}
+
 
             <div style={{
                 flex: 1,
