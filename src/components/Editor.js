@@ -131,7 +131,7 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function Editor({fontSize, onPdfOpen, isDarkMode}) {
+function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -151,6 +151,8 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
     const [errors, setErrors] = useState([]);
     const [breakpoints, setBreakpoints] = useState(new Set());
     const [currentLine, setCurrentLine] = useState(null);
+    // const [lineNumbersVisible, setLineNumbersVisible] = useState(true);
+    const editorRef = useRef(null);
     const coreRef = useRef(null); // new
     const [executionDelay, setExecutionDelay] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -164,6 +166,18 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
         isPausedRef.current = isPaused;
         isRunningRef.current = isRunning;
     }, [isPaused, isRunning]);
+
+    const editorDidMount = (editor) => {
+        editorRef.current = editor;
+    };
+
+    useEffect(() => {
+        if (editorRef.current) {
+            editorRef.current.updateOptions({
+                lineNumbers: showLineNumbers ? 'on' : 'off',
+            });
+        }
+    }, [showLineNumbers]);
 
     useEffect(() => {
         console.log('Data Dump', dataDump)
@@ -895,7 +909,8 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
                         theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
                         onChange={editorChange}
-                        options={{automaticLayout: true, fontSize: fontSize}}
+                        options={{automaticLayout: true,
+                            lineNumbers: showLineNumbers ? 'on' : 'off', fontSize: fontSize}}
                         onMount={editorMount}
                     />
                 </div>
