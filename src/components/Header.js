@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PDFViewer from "./PDFViewer";
 
-function Header({ toggleTheme, isDarkMode, fontSize, setFontSize }) {
+function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNumbers}) {
     const [pdfOpen, setPdfOpen] = React.useState(false);
 
     const chapters = [
@@ -49,6 +49,16 @@ function Header({ toggleTheme, isDarkMode, fontSize, setFontSize }) {
         { title: "xor", page: 456 },
         { title: "xori", page: 457 }
     ];
+
+    const [showLineNumbers, setShowLineNumbers] = useState(true);
+
+    const handleToggle = () => {
+        const newValue = !showLineNumbers;
+        setShowLineNumbers(newValue);
+        if (onToggleLineNumbers) {
+            onToggleLineNumbers(newValue);
+        }
+    };
 
     return (
         <header className="header" style={{
@@ -123,6 +133,9 @@ function Header({ toggleTheme, isDarkMode, fontSize, setFontSize }) {
                         style={{width: '80px'}}
                     />
                     <span>{fontSize}px</span>
+                    <button onClick={handleToggle} className="theme-toggle-button">
+                        {showLineNumbers ? 'Hide Line Numbers' : 'Show Line Numbers'}
+                    </button>
                 </div>
             </div>
 
