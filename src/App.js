@@ -32,6 +32,7 @@ function App() {
                 isDarkMode={isDarkMode}
                 fontSize={fontSize}
                 setFontSize={setFontSize}
+                onToggleLineNumbers={setShowLineNumbers}
             />
             <Editor
                 fontSize={fontSize}
