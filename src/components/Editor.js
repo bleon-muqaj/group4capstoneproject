@@ -39,7 +39,8 @@ async function assemble(currentCode, currentFileName, setTextDump, setDataDump, 
     setOutput(`Assembly of ${currentFileName} was successful.\nYou can now run your code.\n`);
 }
 
-async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters) {
+/*
+async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters, executionDelay){
     let consoleOutput = '';
 
     let core = new Mips32Core();
@@ -79,6 +80,7 @@ async function run(assembledCode, setRegisterValues, setOutput, setTextDump, set
                 consoleOutput += 'Unknown syscall\n';
             }
         }
+        if (executionDelay > 0) await sleep(executionDelay);
     }
 
     const newRegisters = [...core.dump_registers()];
@@ -88,7 +90,7 @@ async function run(assembledCode, setRegisterValues, setOutput, setTextDump, set
         return newRegisters;
     });
     setOutput(consoleOutput);
-}
+}*/
 
 
 const dummyRegisterValues = new Array(32).fill(0);
@@ -125,7 +127,11 @@ const validRegisters = new Set([
 
 const labels = new Set();
 
-function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
     const [docs, setDocs] = useState(getStoredDocs());
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
@@ -148,6 +154,18 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
     // const [lineNumbersVisible, setLineNumbersVisible] = useState(true);
     const editorRef = useRef(null);
     const coreRef = useRef(null); // new
+    const [executionDelay, setExecutionDelay] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const [isRunning, setIsRunning] = useState(false);
+    const isPausedRef = useRef(isPaused);
+    const isRunningRef = useRef(isRunning);
+    const [allBreakpointsEnabled, setAllBreakpointsEnabled] = useState(false);
+    const [runAllowed, setRunAllowed] = useState(true);
+
+    useEffect(() => {
+        isPausedRef.current = isPaused;
+        isRunningRef.current = isRunning;
+    }, [isPaused, isRunning]);
 
     const editorDidMount = (editor) => {
         editorRef.current = editor;
@@ -188,8 +206,7 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
         const errors = [];
         labels.clear();
 
-        lines.forEach((line, index) => { // collect all labels before underlining
-            // console.log("Collected labels:", Array.from(labels));
+        lines.forEach((line, index) => {
             const tokens = line.trim().split(/\s+/);
             if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
                 if (tokens[0].endsWith(":")) {
@@ -202,7 +219,7 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
 
             const trimmed = line.trim();
             if (trimmed === "") return;
-            if (trimmed.startsWith("#")) return; // Entire comment line
+            if (trimmed.startsWith("#")) return;
 
             const tokens = line.trim().split(/\s+/);
             const match = line.match(/^\s*/);
@@ -217,8 +234,7 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
             }
 
             if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-                if (tokens[0].startsWith("#")) return; // Comment after code
-
+                if (tokens[0].startsWith("#")) return;
                 errors.push({
                     startLineNumber: index + 1,
                     startColumn: startColumn,
@@ -233,7 +249,7 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
 
             for (let i = 1; i < tokens.length; i++) {
                 const register = tokens[i].replace(/,/, "");
-                if (register.startsWith("#")) return; // Ignore rest of line if comment begins
+                if (register.startsWith("#")) return;
                 if (!isNaN(register) && Number.isInteger(Number(register))) continue;
 
                 let startPos = line.indexOf(tokens[i], position - 1) + 1;
@@ -264,6 +280,7 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
             return updated;
         });
     }
+
     function readStringFromMemory(startAddress, heapBytes) {
         const baseAddress = 0x10010000;
         const heapOffset = startAddress - baseAddress;
@@ -283,6 +300,77 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
         return str || '[Empty string]';
     }
 
+    async function run() {
+        if (!assembledCode) return;
+
+        setPreviousRegisters(registerValues);
+        setExecutionFinished(false);
+        setOutput('');
+        setRegisterValues(dummyRegisterValues);
+        setChangedRegisters(new Array(32).fill(false));
+
+        let core = new Mips32Core();
+        core.load_text(assembledCode.text());
+        core.load_data(assembledCode.data());
+
+        coreRef.current = core;
+        lineCounterRef.current = 0;
+        core._dataBytes = assembledCode.data();
+
+        const step = async () => {
+            if (executionFinished || !isRunningRef.current) return;
+            if (isPausedRef.current) {
+                requestAnimationFrame(step);
+                return;
+            }
+
+            const isSyscall = core.tick();
+            lineCounterRef.current++;
+            setCurrentLine(lineCounterRef.current);
+
+            const regs = core.dump_registers();
+            const v0 = regs[2];
+            const a0 = regs[4];
+            let newOutput = '';
+
+            if (isSyscall) {
+                if (v0 === 1) {
+                    newOutput += a0.toString() + '\n';
+                } else if (v0 === 4) {
+                    newOutput += readStringFromMemory(a0, core._dataBytes || []);
+                } else if (v0 === 10) {
+                    newOutput += 'Exit\n';
+                    setExecutionFinished(true);
+                    setIsRunning(false);
+                    isRunningRef.current = false;
+                    setRunAllowed(true);
+                    return;
+                } else {
+                    newOutput += 'Unknown syscall\n';
+                }
+                setOutput(prev => prev + newOutput);
+            }
+
+            const newRegisters = [...regs];
+            setRegisterValues(prev => {
+                const changed = newRegisters.map((val, i) => val !== prev[i]);
+                setChangedRegisters(changed);
+                return newRegisters;
+            });
+
+            if (executionDelay > 0) {
+                await sleep(executionDelay);
+            }
+
+            requestAnimationFrame(step);
+        };
+        setIsRunning(true);
+        isRunningRef.current = true;
+        setIsPaused(false);
+        isPausedRef.current = false;
+        step();
+    }
+
 
     async function runToNextBreakpoint() {
         if (!assembledCode || executionFinished) return;
@@ -298,63 +386,73 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
         }
 
         const core = coreRef.current;
-        let consoleOutput = '';
         const breakSet = new Set(breakpoints);
 
-        for (let steps = 0; steps < 10000; steps++) {
+        const step = async () => {
+            if (executionFinished || !isRunningRef.current) return;
+            if (isPausedRef.current) {
+                requestAnimationFrame(step);
+                return;
+            }
+
             const currentIndex = lineCounterRef.current;
 
             if (breakSet.has(currentIndex) && currentIndex !== currentLine) {
                 setCurrentLine(currentIndex);
-                break;
+                setIsRunning(false);
+                isRunningRef.current = false;
+                setRunAllowed(false);
+                return;
             }
 
             const isSyscall = core.tick();
-
             lineCounterRef.current++;
+            setCurrentLine(lineCounterRef.current);
 
             const regs = core.dump_registers();
             const v0 = regs[2];
             const a0 = regs[4];
+            let newOutput = '';
 
             if (isSyscall) {
                 if (v0 === 1) {
-                    consoleOutput += a0.toString() + '\n';
+                    newOutput += a0.toString() + '\n';
                 } else if (v0 === 4) {
-                    const heap = core._dataBytes || new Uint8Array();
-                    const offset = a0 - 0x10010000;
-                    if (offset < 0 || offset >= heap.length) {
-                        consoleOutput += '[Invalid address]\n';
-                    } else {
-                        let str = '';
-                        for (let i = offset; i < heap.length; i++) {
-                            const byte = heap[i];
-                            if (byte === 0) break;
-                            str += String.fromCharCode(byte);
-                        }
-                        consoleOutput += str || '[Empty string]';
-                    }
+                    newOutput += readStringFromMemory(a0, core._dataBytes || []);
                 } else if (v0 === 10) {
-                    consoleOutput += 'Exit\n';
+                    newOutput += 'Exit\n';
                     setExecutionFinished(true);
-                    break;
+                    setIsRunning(false);
+                    isRunningRef.current = false;
+                    return;
                 } else {
-                    consoleOutput += 'Unknown syscall\n';
+                    newOutput += 'Unknown syscall\n';
                 }
+                setOutput(prev => prev + newOutput);
             }
 
-            setCurrentLine(lineCounterRef.current);
-        }
+            const newRegisters = [...regs];
+            setRegisterValues(prev => {
+                const changed = newRegisters.map((val, i) => val !== prev[i]);
+                setChangedRegisters(changed);
+                return newRegisters;
+            });
 
-        setOutput(prev => prev + consoleOutput);
+            if (executionDelay > 0) {
+                await sleep(executionDelay);
+            }
 
-        const finalRegs = [...core.dump_registers()];
-        setRegisterValues(prev => {
-            const changed = finalRegs.map((val, i) => val !== prev[i]);
-            setChangedRegisters(changed);
-            return finalRegs;
-        });
+            requestAnimationFrame(step);
+        };
+        setIsRunning(true);
+        isRunningRef.current = true;
+
+        setIsPaused(false);
+        isPausedRef.current = false;
+
+        step();
     }
+
 
     async function stepInstruction() {
         if (!assembledCode || executionFinished) return;
@@ -423,9 +521,6 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
     }
 
     function editorMount(editor, monaco) {
-
-        // editorRef.current = editor;
-
         editor.onDidChangeModelContent(() => {
             validateCode(editor, monaco);
         });
@@ -489,6 +584,7 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
             coreRef.current = null; // Reset core
             await assemble(currentCode, currentFileName, setTextDump, setDataDump, setAssembledCode, setOutput);
             setCurrentTab('execute');
+            setRunAllowed(true);
         } catch (error) {
             console.error(error);
         }
@@ -502,8 +598,8 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
         }
         setPreviousRegisters(registerValues);
         try {
-            await run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, registerValues, setChangedRegisters);
-            setAssembledCode(null);
+            await run();
+
         } catch (error) {
             console.error(error);
         }
@@ -519,6 +615,21 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
         aLink.click();
         document.body.removeChild(aLink);
         URL.revokeObjectURL(fileURL);
+    }
+
+    function handleImport(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const fileReader = new FileReader();
+            fileReader.onload = function (event) {
+                const newDoc = {name: file.name, content: event.target.result};
+                const updatedDocs = docs.slice();
+                updatedDocs.push(newDoc);
+                setDocs(updatedDocs);
+                setCurrentDoc(updatedDocs.length - 1);
+            };
+            fileReader.readAsText(file);
+        }
     }
 
     function createDoc() {
@@ -564,7 +675,8 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
         const choice = event.target.value; // Get the selected value
         if (choice === "hello_world") {
             // console.log("Executing Hello World logic...");
-            const newDoc = {name: `Hello_World.asm`, content:
+            const newDoc = {
+                name: `Hello_World.asm`, content:
                     '.data\n' +
                     '    message: .asciiz "Hello, World!\\n"\n' +
                     '\n' +
@@ -576,13 +688,14 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     '\n' +
                     '        # Exit the program\n' +
                     '        li $v0, 10          # Syscall for program exit\n' +
-                    '        syscall             # Make syscall to exit'};
+                    '        syscall             # Make syscall to exit'
+            };
             setDocs([...docs, newDoc]);
             setCurrentDoc(docs.length);
             document.getElementById('example').selectedIndex = 0
-        }
-        else if (choice === "add") {
-            const newDoc = {name: `add.asm`, content:
+        } else if (choice === "add") {
+            const newDoc = {
+                name: `add.asm`, content:
                     '.data\n' +
                     '    sum_msg: .asciiz "Sum: "\n' +
                     '\n' +
@@ -606,26 +719,34 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     '\n' +
                     '    # Exit program\n' +
                     '    li $v0, 10\n' +
-                    '    syscall\n'};
+                    '    syscall\n'
+            };
             setDocs([...docs, newDoc]);
             setCurrentDoc(docs.length);
             document.getElementById('example').selectedIndex = 0
-        }else {
+        } else {
             console.log("Unknown selection.");
         }
     }
 
-    // // Toggle function to update line number visibility.
-    // function toggleLineNumbers() {
-    //     // Determine the new value for lineNumbers.
-    //     const newValue = lineNumbersVisible ? "off" : "on";
-    //     // Update the state.
-    //     setLineNumbersVisible(!lineNumbersVisible);
-    //     // Use the stored editor instance to update options.
-    //     if (editorRef.current) {
-    //         editorRef.current.updateOptions({ lineNumbers: newValue });
-    //     }
-    // }
+    function toggleAllBreakpoints() {
+        if (!assembledCode) return;
+
+        const lines = textDump.trim().split('\n');
+        const totalLines = lines.length;
+
+        if (allBreakpointsEnabled) {
+            setBreakpoints(new Set());
+            setAllBreakpointsEnabled(false);
+        } else {
+            const newBreakpoints = new Set();
+            for (let i = 0; i < totalLines; i++) {
+                newBreakpoints.add(i);
+            }
+            setBreakpoints(newBreakpoints);
+            setAllBreakpointsEnabled(true);
+        }
+    }
 
 
     return (
@@ -644,13 +765,10 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 flexWrap: 'wrap',
                 flexShrink: 0
             }}>
-                {/*<button onClick={toggleLineNumbers}>*/}
-                {/*{lineNumbersVisible ? 'Hide Line Numbers' : 'Show Line Numbers'}*/}
-                {/*</button>*/}
-                <label htmlFor="example">Code Examples:</label>
+
                 <select name="example" id="example" style={{marginLeft: '4px'}} onChange={selectCodeExample}>
-                    <option value="" disabled selected hidden>Select An Code Example Here</option>
-                    <option value="hello_world" >Hello World</option>
+                    <option value="" disabled selected hidden>Select a Code Example Here</option>
+                    <option value="hello_world">Hello World</option>
                     <option value="add">Add Two Numbers</option>
                 </select>
             </div>
@@ -692,16 +810,89 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     </span>
                 ))}
                 <button onClick={createDoc}>New File</button>
-                <button onClick={assembleCode}>Assemble</button>
-                <button onClick={runCode} disabled={!assembledCode || executionFinished}>Run</button>
-                <button onClick={runToNextBreakpoint} disabled={!assembledCode || executionFinished}>Run to Breakpoint</button>
-                <button onClick={stepInstruction} disabled={!assembledCode || executionFinished}>Step</button>
+                <button onClick={assembleCode} disabled={isRunning || isPaused}>
+                    Assemble
+                </button>
+                <button
+                    onClick={run}
+                    disabled={!assembledCode || executionFinished || isRunning || !runAllowed}
+                >
+                    Run
+                </button>
+                <button
+                    onClick={runToNextBreakpoint}
+                    disabled={!assembledCode || executionFinished || isRunning}
+                >
+                    Run to Breakpoint
+                </button>
+                <button
+                    onClick={() => {
+                        setIsPaused(true);
+                        isPausedRef.current = true;
+                    }}
+                    disabled={!isRunning || isPaused}
+                >
+                    Pause
+                </button>
+                <button
+                    onClick={() => {
+                        setIsPaused(false);
+                        isPausedRef.current = false;
+                    }}
+                    disabled={!isRunning || !isPaused}
+                >
+                    Resume
+                </button>
+                <button
+                    onClick={() => {
+                        setIsRunning(false);
+                        isRunningRef.current = false;
 
+                        setIsPaused(false);
+                        isPausedRef.current = false;
+
+                        setExecutionFinished(true);
+                        setRunAllowed(true);
+                    }}
+                    disabled={!isRunning}
+                >
+                    Stop
+                </button>
+
+                <button
+                    onClick={stepInstruction}
+                    disabled={!assembledCode || executionFinished || isRunning}
+                >
+                    Step
+                </button>
+                <button
+                    onClick={toggleAllBreakpoints}
+                    disabled={!assembledCode}
+                >
+                    {allBreakpointsEnabled ? 'Clear All Breakpoints' : 'Set All Breakpoints'}
+                </button>
+                <button>
+                    <label style={{cursor: 'pointer'}}>
+                        Import .asm
+                        <input type="file" accept=".asm" onChange={handleImport} style={{display: 'none'}}/>
+                    </label>
+                </button>
                 <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
                     .asm
                 </button>
                 <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
                 <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
+                <label htmlFor="speedSlider">Execution Speed: </label>
+                <input
+                    id="speedSlider"
+                    type="range"
+                    min="0"
+                    max="1000"
+                    step="100"
+                    value={executionDelay}
+                    onChange={(e) => setExecutionDelay(Number(e.target.value))}
+                />
+                <span>{executionDelay} ms</span>
             </div>
 
             <div style={{
@@ -719,9 +910,8 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
                         value={docs[currentDoc].content}
                         onChange={editorChange}
                         options={{automaticLayout: true,
-                            lineNumbers: showLineNumbers ? 'on' : 'off',}}
-                        editorDidMount={editorDidMount}
-                        // onMount={editorMount}
+                            lineNumbers: showLineNumbers ? 'on' : 'off', fontSize: fontSize}}
+                        onMount={editorMount}
                     />
                 </div>
                 <div style={{
@@ -748,7 +938,8 @@ function Editor({ onPdfOpen, isDarkMode, showLineNumbers = true }) {
                             />
                             <button onClick={() => setShowDataAscii(prev => !prev)}>
                                 Show as {showDataAscii ? 'Hex' : 'ASCII'}
-                            </button> </>) :
+                            </button>
+                        </>) :
                         <p>Assemble your code to view text and data content.</p>}
                 </div>
                 <div style={{

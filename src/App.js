@@ -12,6 +12,9 @@ function App() {
     });
     const [showLineNumbers, setShowLineNumbers] = useState(true);
 
+
+    const [fontSize, setFontSize] = useState(14); // NEW
+
     useEffect(() => {
         localStorage.setItem("theme", isDarkMode ? "dark" : "light");
     }, [isDarkMode]);
@@ -24,11 +27,20 @@ function App() {
 
     return (
         <div className={`App ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
-            <Header toggleTheme={toggleTheme} isDarkMode={isDarkMode} onToggleLineNumbers={setShowLineNumbers} />
-            <Editor onPdfOpen={(page) => {
-                setLastViewedPage(page || lastViewedPage);
-                setIsPdfOpen(true);
-            }} isDarkMode={isDarkMode} showLineNumbers={showLineNumbers} />
+            <Header
+                toggleTheme={toggleTheme}
+                isDarkMode={isDarkMode}
+                fontSize={fontSize}
+                setFontSize={setFontSize}
+            />
+            <Editor
+                fontSize={fontSize}
+                onPdfOpen={(page) => {
+                    setLastViewedPage(page || lastViewedPage);
+                    setIsPdfOpen(true);
+                }}
+                isDarkMode={isDarkMode} showLineNumbers={showLineNumbers}
+            />
             {isPdfOpen && (
                 <PDFViewer
                     onClose={() => setIsPdfOpen(false)}
