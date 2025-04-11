@@ -817,6 +817,33 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 </button>
             </div>
             {/*EDIT AND EXECUTE END-*/}
+            {/* FILE TABS  */}
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                flexShrink: 0
+            }}>
+                {docs.map((doc, i) => (
+                    <span key={i} style={{ marginRight: '4px' }}>
+            {editingDoc === i ? (
+                <>
+                    <input value={docRename} onChange={e => setDocRename(e.target.value)}
+                           style={{ marginRight: '2px' }} />
+                    <button onClick={commitRename}>OK</button>
+                    <button onClick={cancelRename}>Cancel</button>
+                </>
+            ) : (
+                <>
+                    <button onClick={() => selectDoc(i)}>{doc.name}</button>
+                    <button onClick={() => removeDoc(i)}>x</button>
+                    <button onClick={() => initiateRename(i)}>Rename</button>
+                </>
+            )}
+        </span>
+                ))}
+            </div>
 
             {/*BUTTONS START (run,import,...*/}
 
