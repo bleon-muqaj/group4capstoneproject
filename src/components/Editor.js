@@ -159,6 +159,8 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
     const isRunningRef = useRef(isRunning);
     const [allBreakpointsEnabled, setAllBreakpointsEnabled] = useState(false);
     const [runAllowed, setRunAllowed] = useState(true);
+    const [editorWidth, setEditorWidth] = useState(70);
+    const [registerDisplayHeight, setRegisterDisplayHeight] = useState(70);
 
     useEffect(() => {
         isPausedRef.current = isPaused;
@@ -734,6 +736,49 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
         }
     }
 
+    // handle resizing of editor/code content displays
+    function handleEditorResize(e) {
+        e.preventDefault();
+        const beginX = e.clientX;
+        const beginWidth = editorWidth;
+
+        const onMouseMove = (moveEvent) => {
+            const deltaX = moveEvent.clientX - beginX;
+            const containerWidth = document.body.clientWidth;
+            const newWidth = ((beginWidth / 100) * containerWidth + deltaX) / containerWidth * 100;
+            setEditorWidth(Math.min(90, Math.max(40, newWidth)));
+        }
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        }
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    }
+
+    // handle resizing of console/register display height
+    function handleRegisterResize(e) {
+        e.preventDefault();
+        const beginY = e.clientY;
+        const containerHeight = document.body.clientHeight;
+        const beginHeight = registerDisplayHeight;
+
+        const onMouseMove = (moveEvent) => {
+            const deltaY = moveEvent.clientY - beginY;
+            const newHeight = ((beginHeight / 100) * containerHeight - deltaY) / containerHeight * 100;
+            setRegisterDisplayHeight(Math.min(90, Math.max(40, newHeight)));
+        };
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    }
 
     return (
         <div style={{
@@ -887,21 +932,21 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
                 flexDirection: 'row',
                 overflow: 'hidden'
             }}>
-                <div style={{display: currentTab === 'edit' ? 'flex' : 'none', flex: 3, minWidth: '0px'}}>
+                <div style={{display: currentTab === 'edit' ? 'flex' : 'none', flex: editorWidth, minWidth: '0px'}}>
                     <MonacoEditor
                         height="100%"
-                        width="100%"
+                        width='100%'
                         language="mips"
                         theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
                         onChange={editorChange}
-                        options={{automaticLayout: true, fontSize: fontSize}}
+                        options={{automaticLayout: true, fontSize: fontSize, minimap: {enabled: false}}}
                         onMount={editorMount}
                     />
                 </div>
                 <div style={{
                     display: currentTab === 'execute' ? 'flex' : 'none',
-                    flex: 3,
+                    flex: editorWidth,
                     flexDirection: 'column',
                     minWidth: '0px'
                 }}>
@@ -927,8 +972,16 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
                         </>) :
                         <p>Assemble your code to view text and data content.</p>}
                 </div>
+                <div
+                    style={{
+                        width: '3px',
+                        cursor: 'col-resize',
+                        background: isDarkMode ? '#444' : '#ccc',
+                    }}
+                    onMouseDown={handleEditorResize}
+                />
                 <div style={{
-                    flex: 1,
+                    flex: 100 - editorWidth,
                     minWidth: '250px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -940,18 +993,26 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
                         color: isDarkMode ? 'white' : 'black',
                         padding: '8px',
                         fontFamily: 'monospace',
-                        height: '150px',
+                        height: `${100 - registerDisplayHeight}%`,
                         overflowY: 'auto'
                     }}>
                         <h3 style={{margin: '0 0 8px 0'}}>Console Output:</h3>
                         <pre style={{margin: 0}}>{output}</pre>
                     </div>
-
+                    <div
+                        onMouseDown={handleRegisterResize}
+                        style={{
+                            height: '3px',
+                            cursor: 'row-resize',
+                            background: isDarkMode ? '#444' : '#ccc',
+                        }}
+                    />
                     <div style={{
                         background: isDarkMode ? '#222' : '#ddd',
                         color: isDarkMode ? 'white' : 'black',
                         padding: '8px',
                         flex: 1,
+                        height: `${registerDisplayHeight}%`,
                         overflowY: 'auto'
                     }}>
                         <h3 style={{margin: '0 0 8px 0'}}>Registers:</h3>
