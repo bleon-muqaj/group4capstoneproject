@@ -770,7 +770,7 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 boxShadow: '2px 0 5px rgba(0, 0, 0, 0.1)',
                 flexShrink: 0
             }}>
-                <h3 style={{ marginBottom: '8px' }}>Controls</h3>
+                <h3 style={{ marginBottom: '8px', textAlign: "center"}}>Controls</h3>
 
                 <button onClick={createDoc}>
                     <i className="fas fa-file-alt" style={{ marginRight: '5px' }}></i>
@@ -861,33 +861,88 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     </button>
                 </div>
                 {/*EDIT AND EXECUTE END-*/}
+
                 {/* FILE TABS  */}
                 <div style={{
                     background: isDarkMode ? '#333' : '#f5f5f5',
                     padding: '8px',
                     display: 'flex',
                     flexWrap: 'wrap',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    gap: '8px'
                 }}>
                     {docs.map((doc, i) => (
-                        <span key={i} style={{ marginRight: '4px' }}>
-            {editingDoc === i ? (
-                <>
-                    <input value={docRename} onChange={e => setDocRename(e.target.value)}
-                           style={{ marginRight: '2px' }} />
-                    <button onClick={commitRename}>OK</button>
-                    <button onClick={cancelRename}>Cancel</button>
-                </>
-            ) : (
-                <>
-                    <button onClick={() => selectDoc(i)}>{doc.name}</button>
-                    <button onClick={() => removeDoc(i)}>x</button>
-                    <button onClick={() => initiateRename(i)}>Rename</button>
-                </>
-            )}
-        </span>
+                        <div key={i} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            border: '1px solid #ccc',
+                            borderRadius: '20px',
+                            padding: '4px 8px',
+                            background: currentDoc === i ? (isDarkMode ? '#555' : '#ddd') : (isDarkMode ? '#222' : '#fff'),
+                            gap: '4px'
+                        }}>
+                            {editingDoc === i ? (
+                                <>
+                                    <input
+                                        value={docRename}
+                                        onChange={(e) => setDocRename(e.target.value)}
+                                        style={{
+                                            border: '1px solid #ccc',
+                                            borderRadius: '4px',
+                                            padding: '2px 4px',
+                                            fontSize: '14px'
+                                        }}
+                                    />
+                                    <button onClick={commitRename} style={{ fontSize: '12px' }}>✔</button>
+                                    <button onClick={cancelRename} style={{ fontSize: '12px' }}>✖</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => selectDoc(i)}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            fontWeight: currentDoc === i ? 'bold' : 'normal',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {doc.name}
+                                    </button>
+                                    <button onClick={() => initiateRename(i)} style={{ fontSize: '12px' }}>✎</button>
+                                    <button onClick={() => removeDoc(i)} style={{ fontSize: '12px', color: 'red' }}>✖</button>
+                                </>
+                            )}
+                        </div>
                     ))}
                 </div>
+
+                {/*        <div style={{*/}
+        {/*            background: isDarkMode ? '#333' : '#f5f5f5',*/}
+        {/*            padding: '8px',*/}
+        {/*            display: 'flex',*/}
+        {/*            flexWrap: 'wrap',*/}
+        {/*            flexShrink: 0*/}
+        {/*        }}>*/}
+        {/*            {docs.map((doc, i) => (*/}
+        {/*                <span key={i} style={{ marginRight: '4px' }}>*/}
+        {/*    {editingDoc === i ? (*/}
+        {/*        <>*/}
+        {/*            <input value={docRename} onChange={e => setDocRename(e.target.value)}*/}
+        {/*                   style={{ marginRight: '2px' }} />*/}
+        {/*            <button onClick={commitRename}>OK</button>*/}
+        {/*            <button onClick={cancelRename}>Cancel</button>*/}
+        {/*        </>*/}
+        {/*    ) : (*/}
+        {/*        <>*/}
+        {/*            <button onClick={() => selectDoc(i)}>{doc.name}</button>*/}
+        {/*            <button onClick={() => removeDoc(i)}>x</button>*/}
+        {/*            <button onClick={() => initiateRename(i)}>Rename</button>*/}
+        {/*        </>*/}
+        {/*    )}*/}
+        {/*</span>*/}
+        {/*            ))}*/}
+        {/*        </div>*/}
 
 
                 {/*BUTTONS START (run,import,...*/}
