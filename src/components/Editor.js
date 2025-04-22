@@ -39,60 +39,6 @@ async function assemble(currentCode, currentFileName, setTextDump, setDataDump, 
     setOutput(`Assembly of ${currentFileName} was successful.\nYou can now run your code.\n`);
 }
 
-/*
-async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters, executionDelay){
-    let consoleOutput = '';
-
-    let core = new Mips32Core();
-    core.load_text(assembledCode.text());
-    core.load_data(assembledCode.data());
-
-    const staticData = assembledCode.data();
-    let running = true;
-
-    while (running) {
-        const isSyscall = core.tick();
-        const regs = core.dump_registers();
-        const v0 = regs[2]; // $v0
-        const a0 = regs[4]; // $a0
-
-        if (isSyscall) {
-            if (v0 === 1) {
-                consoleOutput += a0.toString() + '\n';
-            } else if (v0 === 4) {
-                const offset = a0 - 0x10010000;
-                if (offset < 0 || offset >= staticData.length) {
-                    consoleOutput += '[Invalid address]\n';
-                } else {
-                    let str = '';
-                    for (let i = offset; i < staticData.length; i++) {
-                        const byte = staticData[i];
-                        if (byte === 0) break;
-                        str += String.fromCharCode(byte);
-                    }
-                    consoleOutput += str || '[Empty string]';
-                }
-            } else if (v0 === 10) {
-                consoleOutput += 'Exit\n';
-                running = false;
-                break;
-            } else {
-                consoleOutput += 'Unknown syscall\n';
-            }
-        }
-        if (executionDelay > 0) await sleep(executionDelay);
-    }
-
-    const newRegisters = [...core.dump_registers()];
-    setRegisterValues(prev => {
-        const changedRegisters = newRegisters.map((val, i) => val !== prev[i]);
-        setChangedRegisters(changedRegisters);
-        return newRegisters;
-    });
-    setOutput(consoleOutput);
-}*/
-
-
 const dummyRegisterValues = new Array(32).fill(0);
 dummyRegisterValues[28] = 268468224;
 dummyRegisterValues[29] = 2147479548;

@@ -1,6 +1,6 @@
 import React from 'react';
 
-function RegisterDisplay({ registerValues = new Array(32).fill(0), changedRegisters = new Array(32).fill(false) }) {
+function RegisterDisplay({registerValues = new Array(32).fill(0), changedRegisters = new Array(32).fill(false)}) {
     const registerLabels = {
         0: '$zero', 1: '$at', 2: '$v0', 3: '$v1',
         4: '$a0', 5: '$a1', 6: '$a2', 7: '$a3',
@@ -18,26 +18,34 @@ function RegisterDisplay({ registerValues = new Array(32).fill(0), changedRegist
     }
 
     return (
-        <div style={{ overflowX: 'hidden', width: '100%' }}>
+        <div style={{overflowX: 'hidden', width: '100%'}}>
             <table style={{
                 width: '100%',
                 borderCollapse: 'collapse',
                 border: '2px solid grey',
-                tableLayout: 'fixed'
+                tableLayout: 'auto'
             }}>
                 <thead>
                 <tr>
-                    <th style={{ width: '30%', border: '1px solid grey', padding: '5px' }}>Name</th>
-                    <th style={{ width: '15%', border: '1px solid grey', padding: '5px' }}>Num</th>
-                    <th style={{ width: '55%', border: '1px solid grey', padding: '5px' }}>Value</th>
+                    <th style={{width: '30%', border: '1px solid grey', padding: '5px'}}>Name</th>
+                    <th style={{width: '15%', border: '1px solid grey', padding: '5px'}}>Num</th>
+                    <th style={{width: '55%', border: '1px solid grey', padding: '5px'}}>Value</th>
                 </tr>
                 </thead>
                 <tbody>
                 {[...registerValues].map((value, index) =>
-                    <tr key={index} style={{ backgroundColor: changedRegisters[index] ? '#ffcc00' : 'transparent' }}>
-                        <td style={{ border: '1px solid grey', padding: '5px', textAlign: 'center' }}>{registerLabels[index]}</td>
-                        <td style={{ border: '1px solid grey', padding: '5px', textAlign: 'center' }}>{index}</td>
-                        <td style={{ border: '1px solid grey', padding: '5px', textAlign: 'center' }}>0x{toHexString(value)}</td>
+                    <tr key={index} style={{backgroundColor: changedRegisters[index] ? '#ffcc00' : 'transparent'}}>
+                        <td style={{
+                            border: '1px solid grey',
+                            padding: '5px',
+                            textAlign: 'center'
+                        }}>{registerLabels[index]}</td>
+                        <td style={{border: '1px solid grey', padding: '5px', textAlign: 'center'}}>{index}</td>
+                        <td style={{
+                            border: '1px solid grey',
+                            padding: '5px',
+                            textAlign: 'center'
+                        }}>0x{toHexString(value)}</td>
                     </tr>
                 )}
                 </tbody>
