@@ -772,6 +772,7 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
             }}>
                 <h3 style={{ marginBottom: '8px', textAlign: "center"}}>Controls</h3>
 
+                {/* Group 1: File actions */}
                 <button onClick={createDoc}>
                     <i className="fas fa-file-alt" style={{ marginRight: '5px' }}></i>
                     New File
@@ -785,6 +786,7 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     </label>
                 </button>
 
+                {/* Group 4 - downloads */}
                 <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>
                     <i className="fas fa-download" style={{ marginRight: '5px' }}></i>
                     Download .asm
@@ -865,19 +867,19 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 {/* FILE TABS  */}
                 <div style={{
                     background: isDarkMode ? '#333' : '#f5f5f5',
-                    padding: '8px',
+                    padding: '4px',
                     display: 'flex',
                     flexWrap: 'wrap',
                     flexShrink: 0,
-                    gap: '8px'
+                    gap: '4px'
                 }}>
                     {docs.map((doc, i) => (
                         <div key={i} style={{
                             display: 'flex',
                             alignItems: 'center',
                             border: '1px solid #ccc',
-                            borderRadius: '20px',
-                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            padding: '2px 6px',
                             background: currentDoc === i ? (isDarkMode ? '#555' : '#ddd') : (isDarkMode ? '#222' : '#fff'),
                             gap: '4px'
                         }}>
@@ -889,8 +891,8 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                                         style={{
                                             border: '1px solid #ccc',
                                             borderRadius: '4px',
-                                            padding: '2px 4px',
-                                            fontSize: '14px'
+                                            padding: '1px 3px',
+                                            fontSize: '12px'
                                         }}
                                     />
                                     <button onClick={commitRename} style={{ fontSize: '12px' }}>✔</button>
@@ -903,46 +905,22 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                                         style={{
                                             background: 'none',
                                             border: 'none',
+                                            padding: '2px 4px',
+                                            fontSize: '12px',
+                                            lineHeight: '1',
                                             fontWeight: currentDoc === i ? 'bold' : 'normal',
                                             cursor: 'pointer'
                                         }}
                                     >
                                         {doc.name}
                                     </button>
-                                    <button onClick={() => initiateRename(i)} style={{ fontSize: '12px' }}>✎</button>
-                                    <button onClick={() => removeDoc(i)} style={{ fontSize: '12px', color: 'red' }}>✖</button>
+                                    <button onClick={() => initiateRename(i)} style={{ fontSize: '10px' }}>✎</button>
+                                    <button onClick={() => removeDoc(i)} style={{ fontSize: '10px', color: 'red' }}>✖</button>
                                 </>
                             )}
                         </div>
                     ))}
                 </div>
-
-                {/*        <div style={{*/}
-        {/*            background: isDarkMode ? '#333' : '#f5f5f5',*/}
-        {/*            padding: '8px',*/}
-        {/*            display: 'flex',*/}
-        {/*            flexWrap: 'wrap',*/}
-        {/*            flexShrink: 0*/}
-        {/*        }}>*/}
-        {/*            {docs.map((doc, i) => (*/}
-        {/*                <span key={i} style={{ marginRight: '4px' }}>*/}
-        {/*    {editingDoc === i ? (*/}
-        {/*        <>*/}
-        {/*            <input value={docRename} onChange={e => setDocRename(e.target.value)}*/}
-        {/*                   style={{ marginRight: '2px' }} />*/}
-        {/*            <button onClick={commitRename}>OK</button>*/}
-        {/*            <button onClick={cancelRename}>Cancel</button>*/}
-        {/*        </>*/}
-        {/*    ) : (*/}
-        {/*        <>*/}
-        {/*            <button onClick={() => selectDoc(i)}>{doc.name}</button>*/}
-        {/*            <button onClick={() => removeDoc(i)}>x</button>*/}
-        {/*            <button onClick={() => initiateRename(i)}>Rename</button>*/}
-        {/*        </>*/}
-        {/*    )}*/}
-        {/*</span>*/}
-        {/*            ))}*/}
-        {/*        </div>*/}
 
 
                 {/*BUTTONS START (run,import,...*/}
@@ -953,31 +931,6 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     gap: '12px',
                     alignItems: 'center'
                 }}>
-
-
-                    {/* Group 1: File actions */}
-                    {/*<div style={{ display: 'flex', gap: '4px' }}>*/}
-                    {/*    /!* new file button *!/*/}
-                    {/*    <button onClick={createDoc}>*/}
-                    {/*        <i className="fas fa-file-alt" style={{ marginRight: '5px' }}></i>*/}
-                    {/*        New File*/}
-                    {/*    </button>*/}
-
-                    {/*    /!* import file button *!/*/}
-                    {/*    <button>*/}
-                    {/*        <label style={{ cursor: 'pointer' }}>*/}
-                    {/*            <i className="fas fa-upload" style={{ marginRight: '5px' }}></i>*/}
-                    {/*            Import .asm*/}
-                    {/*            <input type="file" accept=".asm" onChange={handleImport} style={{ display: 'none' }} />*/}
-                    {/*        </label>*/}
-                    {/*    </button>*/}
-
-                    {/*    /!* download file button *!/*/}
-                    {/*    <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>*/}
-                    {/*        <i className="fas fa-download" style={{ marginRight: '5px' }}></i>*/}
-                    {/*        Download .asm*/}
-                    {/*    </button>*/}
-                    {/*</div>*/}
 
                     {/* Group 2 - assemble and run  */}
                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -1037,14 +990,6 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                                 </>
                             )}
                         </button>
-                        {/*<button onClick={() => handleDownload(dataDump, "data_dump.txt")}>*/}
-                        {/*    <i className="fas fa-download" style={{ marginRight: '5px' }}></i>*/}
-                        {/*    Download .data*/}
-                        {/*</button>*/}
-                        {/*<button onClick={() => handleDownload(textDump, "text_dump.txt")}>*/}
-                        {/*    <i className="fas fa-download" style={{ marginRight: '5px' }}></i>*/}
-                        {/*    Download .text*/}
-                        {/*</button>*/}
                     </div>
 
                     {/* Group 5 speed slider */}
