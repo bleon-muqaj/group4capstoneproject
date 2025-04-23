@@ -133,6 +133,7 @@ function sleep(ms) {
 
 function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
     const [docs, setDocs] = useState(getStoredDocs());
+    const [showFileMenu, setShowFileMenu] = useState(false);
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
     const [registerValues, setRegisterValues] = useState(dummyRegisterValues);
@@ -753,270 +754,144 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
         <div style={{
             height: '100vh',
             display: 'flex',
-            flexDirection: 'row',
+            flexDirection: 'column',
             width: "100%",
             backgroundColor: isDarkMode ? "#121212" : "#ffffff",
             color: isDarkMode ? "#ffffff" : "#000000"
         }}>
-            {/*sidebar*/}
-            <div className='side-bar' style={{
-                width: '125px',
-                background: isDarkMode ? '#1e1e1e' : '#f0f0f0',
-                color: isDarkMode ? 'white' : 'black',
-                padding: '12px',
+            {/* Top Bar */}
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                boxShadow: '2px 0 5px rgba(0, 0, 0, 0.1)',
-                flexShrink: 0
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap'
             }}>
-                <h3 style={{ marginBottom: '8px', textAlign: "center"}}>Controls</h3>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {/* FILE Dropdown */}
+                    <div style={{ position: 'relative' }}>
+                        <button onClick={() => setShowFileMenu(prev => !prev)}>
+                            📁 File ▾
+                        </button>
+                        {showFileMenu && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                background: isDarkMode ? '#444' : '#fff',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                                zIndex: 1000,
+                                padding: '8px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px'
+                            }}>
+                                <button onClick={createDoc}>📄 New File</button>
+                                <button>
+                                    <label style={{
+                                        cursor: 'pointer',
+                                        display: 'block',
+                                        width: '100%'
+                                    }}>
+                                        ⬆️ Import .asm
+                                        <input type="file" accept=".asm" onChange={handleImport} style={{ display: 'none' }} />
+                                    </label>
+                                </button>
+                                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>⬇️ Download .asm</button>
+                                <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>⬇️ Download .data</button>
+                                <button onClick={() => handleDownload(textDump, "text_dump.txt")}>⬇️ Download .text</button>
+                            </div>
+                        )}
+                    </div>
 
-                {/* Group 1: File actions */}
-                <button onClick={createDoc}>
-                    <i className="fas fa-file-alt" style={{ marginRight: '5px' }}></i>
-                    New File
-                </button>
-
-                <button>
-                    <label style={{ cursor: 'pointer' }}>
-                        <i className="fas fa-upload" style={{ marginRight: '5px' }}></i>
-                        Import .asm
-                        <input type="file" accept=".asm" onChange={handleImport} style={{ display: 'none' }} />
-                    </label>
-                </button>
-
-                {/* Group 4 - downloads */}
-                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>
-                    <i className="fas fa-download" style={{ marginRight: '5px' }}></i>
-                    Download .asm
-                </button>
-
-                <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>
-                    <i className="fas fa-download" style={{ marginRight: '5px' }}></i>
-                    Download .data
-                </button>
-                <button onClick={() => handleDownload(textDump, "text_dump.txt")}>
-                    <i className="fas fa-download" style={{ marginRight: '5px' }}></i>
-                    Download .text
-                </button>
-            </div>
-
-            {/*right side*/}
-            <div>
-                <div style={{
-                    background: isDarkMode ? '#333' : '#f5f5f5',
-                    padding: '8px',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    flexShrink: 0
-                }}>
-
-                    <select name="example" id="example" style={{marginLeft: '4px'}} onChange={selectCodeExample}>
-                        <option value="" disabled selected hidden>Select a Code Example Here</option>
+                    {/* Code Examples Dropdown */}
+                    <select name="example" id="example" onChange={selectCodeExample}>
+                        <option value="" disabled selected hidden>Select Example</option>
                         <option value="hello_world">Hello World</option>
                         <option value="add">Add Two Numbers</option>
                     </select>
                 </div>
 
 
-                {/*EDIT AND EXECUTE BUTTON*/}
-                <div style={{
-                    background: isDarkMode ? '#333' : '#f5f5f5',
-                    padding: '8px',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    flexShrink: 0,
-                    gap: '12px', //
-                    alignItems: 'center' //
-                }}>
-                    {/* edit button */}
-                    <button
-                        onClick={() => setCurrentTab('edit')}
-                        style={{
-                            backgroundColor: '#007bff',
-                            color: 'white',
-                            padding: '8px 16px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center'
-                        }}>
-                        <i className="fas fa-edit" style={{ marginRight: '5px' }}></i>
-                        Edit
-                    </button>
 
-                    {/* execute button */}
-                    <button
-                        onClick={() => setCurrentTab('execute')}
-                        style={{
-                            backgroundColor: '#007bff',
-                            color: 'white',
-                            padding: '8px 16px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center'
-                        }}>
-                        <i className="fas fa-play" style={{ marginRight: '5px' }}></i>
-                        Execute
-                    </button>
-                </div>
-                {/*EDIT AND EXECUTE END-*/}
+            </div>
 
-                {/* FILE TABS  */}
-                <div style={{
-                    background: isDarkMode ? '#333' : '#f5f5f5',
-                    padding: '4px',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    flexShrink: 0,
-                    gap: '4px'
-                }}>
-                    {docs.map((doc, i) => (
-                        <div key={i} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            border: '1px solid #ccc',
-                            borderRadius: '12px',
-                            padding: '2px 6px',
-                            background: currentDoc === i ? (isDarkMode ? '#555' : '#ddd') : (isDarkMode ? '#222' : '#fff'),
-                            gap: '4px'
-                        }}>
-                            {editingDoc === i ? (
-                                <>
-                                    <input
-                                        value={docRename}
-                                        onChange={(e) => setDocRename(e.target.value)}
-                                        style={{
-                                            border: '1px solid #ccc',
-                                            borderRadius: '4px',
-                                            padding: '1px 3px',
-                                            fontSize: '12px'
-                                        }}
-                                    />
-                                    <button onClick={commitRename} style={{ fontSize: '12px' }}>✔</button>
-                                    <button onClick={cancelRename} style={{ fontSize: '12px' }}>✖</button>
-                                </>
-                            ) : (
-                                <>
-                                    <button
-                                        onClick={() => selectDoc(i)}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            padding: '2px 4px',
-                                            fontSize: '12px',
-                                            lineHeight: '1',
-                                            fontWeight: currentDoc === i ? 'bold' : 'normal',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {doc.name}
-                                    </button>
-                                    <button onClick={() => initiateRename(i)} style={{ fontSize: '10px' }}>✎</button>
-                                    <button onClick={() => removeDoc(i)} style={{ fontSize: '10px', color: 'red' }}>✖</button>
-                                </>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-
-                {/*BUTTONS START (run,import,...*/}
-
-                <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                    alignItems: 'center'
-                }}>
-
-                    {/* Group 2 - assemble and run  */}
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={assembleCode} disabled={isRunning || isPaused}>
-                            <i className="fas fa-cogs" style={{ marginRight: '5px' }}></i>
-                            Assemble
-                        </button>
-                        <button onClick={run} disabled={!assembledCode || executionFinished || isRunning || !runAllowed}>
-                            <i className="fas fa-play" style={{ marginRight: '5px' }}></i>
-                            Run
-                        </button>
-                        <button onClick={stepInstruction} disabled={!assembledCode || executionFinished || isRunning}>
-                            <i className="fas fa-step-forward" style={{ marginRight: '5px' }}></i>
-                            Step
-                        </button>
+            {/* FILE TABS */}
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '4px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '4px'
+            }}>
+                {docs.map((doc, i) => (
+                    <div key={i} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        border: '1px solid #ccc',
+                        borderRadius: '12px',
+                        padding: '2px 6px',
+                        background: currentDoc === i ? (isDarkMode ? '#555' : '#ddd') : (isDarkMode ? '#222' : '#fff'),
+                        gap: '4px'
+                    }}>
+                        {editingDoc === i ? (
+                            <>
+                                <input
+                                    value={docRename}
+                                    onChange={(e) => setDocRename(e.target.value)}
+                                    style={{ borderRadius: '4px', fontSize: '12px' }}
+                                />
+                                <button onClick={commitRename}>✔</button>
+                                <button onClick={cancelRename}>✖</button>
+                            </>
+                        ) : (
+                            <>
+                                <button onClick={() => selectDoc(i)}>{doc.name}</button>
+                                <button onClick={() => initiateRename(i)}>✎</button>
+                                <button onClick={() => removeDoc(i)}>✖</button>
+                            </>
+                        )}
                     </div>
+                ))}
+            </div>
 
-                    {/* Group 3 - execution flow */}
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={runToNextBreakpoint} disabled={!assembledCode || executionFinished || isRunning}>
-                            <i className="fas fa-fast-forward" style={{ marginRight: '5px' }}></i>
-                            Run to Breakpoint
-                        </button>
-                        <button onClick={() => { setIsPaused(true); isPausedRef.current = true; }} disabled={!isRunning || isPaused}>
-                            <i className="fas fa-pause" style={{ marginRight: '5px' }}></i>
-                            Pause
-                        </button>
-                        <button onClick={() => { setIsPaused(false); isPausedRef.current = false; }} disabled={!isRunning || !isPaused}>
-                            <i className="fas fa-play" style={{ marginRight: '5px' }}></i>
-                            Resume
-                        </button>
-                        <button onClick={() => {
-                            setIsRunning(false);
-                            isRunningRef.current = false;
-                            setIsPaused(false);
-                            isPausedRef.current = false;
-                            setExecutionFinished(true);
-                            setRunAllowed(true);
-                        }} disabled={!isRunning}>
-                            <i className="fas fa-stop" style={{ marginRight: '5px' }}></i>
-                            Stop
-                        </button>
-                    </div>
+            {/* Edit & Execute Buttons */}
+            <div style={{
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
+                display: 'flex',
+                gap: '12px',
+                flexWrap: 'wrap'
+            }}>
+                <button onClick={() => setCurrentTab('edit')}>✏️ Edit</button>
+                <button onClick={() => setCurrentTab('execute')}>▶️ Execute View</button>
+                <button onClick={assembleCode} disabled={isRunning || isPaused}>⚙️ Assemble</button>
+                <button onClick={run} disabled={!assembledCode || executionFinished || isRunning || !runAllowed}>▶️ Run</button>
+                <button onClick={stepInstruction} disabled={!assembledCode || executionFinished || isRunning}>⏭️ Step</button>
+                <button onClick={runToNextBreakpoint} disabled={!assembledCode || executionFinished || isRunning}>⏩ Run to BP</button>
+                <button onClick={() => { setIsPaused(true); isPausedRef.current = true; }} disabled={!isRunning || isPaused}>⏸️ Pause</button>
+                <button onClick={() => { setIsPaused(false); isPausedRef.current = false; }} disabled={!isRunning || !isPaused}>▶️ Resume</button>
+                <button onClick={() => {
+                    setIsRunning(false);
+                    isRunningRef.current = false;
+                    setIsPaused(false);
+                    isPausedRef.current = false;
+                    setExecutionFinished(true);
+                    setRunAllowed(true);
+                }} disabled={!isRunning}>⏹️ Stop</button>
+                <button onClick={toggleAllBreakpoints} disabled={!assembledCode}>
+                    {allBreakpointsEnabled ? "🚫 Clear BPs" : "🎯 Set BPs"}
+                </button>
+            </div>
 
-                    {/* Group 4 - breakpoint and download */}
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={toggleAllBreakpoints} disabled={!assembledCode}>
-                            {allBreakpointsEnabled ? (
-                                <>
-                                    <i className="fas fa-bomb" style={{ marginRight: '5px' }}></i>
-                                    Clear All Breakpoints
-                                </>
-                            ) : (
-                                <>
-                                    <i className="fas fa-bomb" style={{ marginRight: '5px' }}></i>
-                                    Set All Breakpoints
-                                </>
-                            )}
-                        </button>
-                    </div>
-
-                    {/* Group 5 speed slider */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <label htmlFor="speedSlider">Execution Speed:</label>
-                        <input
-                            id="speedSlider"
-                            type="range"
-                            min="0"
-                            max="1000"
-                            step="100"
-                            value={executionDelay}
-                            onChange={(e) => setExecutionDelay(Number(e.target.value))}
-                        />
-                        <span>{executionDelay} ms</span>
-                    </div>
-                </div>
-                {/*BUTTONS END ^^*/}
-
-
-                <div style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'row',
-                    overflow: 'hidden'
-                }}>
-                    <div style={{display: currentTab === 'edit' ? 'flex' : 'none', flex: 3, minWidth: '0px'}}>
+            {/* Main Area */}
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                {/* Editor */}
+                {currentTab === 'edit' && (
+                    <div style={{ flex: 3, minWidth: '0px' }}>
                         <MonacoEditor
                             height="100%"
                             width="100%"
@@ -1024,18 +899,18 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                             theme={isDarkMode ? "vs-dark" : "vs-light"}
                             value={docs[currentDoc].content}
                             onChange={editorChange}
-                            options={{automaticLayout: true,
-                                lineNumbers: showLineNumbers ? 'on' : 'off', fontSize: fontSize}}
+                            options={{ automaticLayout: true, lineNumbers: showLineNumbers ? 'on' : 'off', fontSize }}
                             onMount={editorMount}
                         />
                     </div>
-                    <div style={{
-                        display: currentTab === 'execute' ? 'flex' : 'none',
-                        flex: 3,
-                        flexDirection: 'column',
-                        minWidth: '0px'
-                    }}>
-                        {assembledCode ? (<><p>Text Segment</p>
+                )}
+
+                {/* Execution View */}
+                {currentTab === 'execute' && (
+                    <div style={{ flex: 3, flexDirection: 'column', display: 'flex', minWidth: '0px' }}>
+                        {assembledCode ? (
+                            <>
+                                <p>Text Segment</p>
                                 <TextSegmentDisplay
                                     textDump={textDump}
                                     breakpoints={breakpoints}
@@ -1047,52 +922,50 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                                     Show as {showTextAscii ? 'Hex' : 'Instructions'}
                                 </button>
                                 <p>Data Segment</p>
-                                <DataSegmentDisplay
-                                    dataDump={dataDump}
-                                    showAscii={showDataAscii}
-                                />
+                                <DataSegmentDisplay dataDump={dataDump} showAscii={showDataAscii} />
                                 <button onClick={() => setShowDataAscii(prev => !prev)}>
                                     Show as {showDataAscii ? 'Hex' : 'ASCII'}
                                 </button>
-                            </>) :
-                            <p>Assemble your code to view text and data content.</p>}
+                            </>
+                        ) : (
+                            <p>Assemble your code to view text and data content.</p>
+                        )}
+                    </div>
+                )}
+
+                {/* Console & Registers */}
+                <div style={{
+                    flex: 1,
+                    minWidth: '250px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: isDarkMode ? "#222" : "#f5f5f5"
+                }}>
+                    <div style={{
+                        padding: '8px',
+                        fontFamily: 'monospace',
+                        height: '150px',
+                        overflowY: 'auto',
+                        background: isDarkMode ? 'black' : '#f5f5f5'
+                    }}>
+                        <h3>Console Output:</h3>
+                        <pre>{output}</pre>
                     </div>
                     <div style={{
+                        padding: '8px',
                         flex: 1,
-                        minWidth: '250px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        background: isDarkMode ? "#222" : "#f5f5f5",
-                        color: isDarkMode ? "white" : "black"
+                        overflowY: 'auto',
+                        background: isDarkMode ? '#222' : '#ddd'
                     }}>
-                        <div style={{
-                            background: isDarkMode ? 'black' : '#f5f5f5',
-                            color: isDarkMode ? 'white' : 'black',
-                            padding: '8px',
-                            fontFamily: 'monospace',
-                            height: '150px',
-                            overflowY: 'auto'
-                        }}>
-                            <h3 style={{margin: '0 0 8px 0'}}>Console Output:</h3>
-                            <pre style={{margin: 0}}>{output}</pre>
-                        </div>
-
-                        <div style={{
-                            background: isDarkMode ? '#222' : '#ddd',
-                            color: isDarkMode ? 'white' : 'black',
-                            padding: '8px',
-                            flex: 1,
-                            overflowY: 'auto'
-                        }}>
-                            <h3 style={{margin: '0 0 8px 0'}}>Registers:</h3>
-                            <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters}/>
-                        </div>
+                        <h3>Registers:</h3>
+                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters} />
                     </div>
                 </div>
             </div>
-
         </div>
     );
+
+
 }
 
 export default Editor;
