@@ -51,51 +51,16 @@ export function getStoredDocs() {
     }
 }
 
-export const validInstructions = new Set([
-    "add",
-    "addu",
-    "sub",
-    "subu",
-    "and",
-    "or",
-    "xor",
-    "nor",
-    "slt",
-    "sltu",
-    "addi",
-    "addiu",
-    "andi",
-    "ori",
-    "xori",
-    "lui",
-    "sll",
-    "srl",
-    "sra",
-    "sllv",
-    "srlv",
-    "srav",
-    "beq",
-    "bne",
-    "blez",
-    "bgtz",
-    "bltz",
-    "bgez",
-    "j",
-    "jal",
-    "jr",
-    "jalr",
-    "lb",
-    "lh",
-    "lw",
-    "lbu",
-    "lhu",
-    "sb",
-    "sh",
-    "sw",
-    "li",
-    "la",
-    "move",
-    "syscall"
+export const validInstructions = new Map([
+    ["add", 3], ["addu", 3], ["sub", 3], ["subu", 3], ["and", 3], ["or", 3], ["xor", 3], ["nor", 3], ["slt", 3], ["sltu", 3],
+    ["addi", 3], ["addiu", 3], ["andi", 3], ["ori", 3], ["xori", 3], ["lui", 2],
+    ["sll", 3], ["srl", 3], ["sra", 3], ["sllv", 3], ["srlv", 3], ["srav", 3],
+    ["beq", 3], ["bne", 3], ["blez", 2], ["bgtz", 2], ["bltz", 2], ["bgez", 2],
+    ["j", 1], ["jal", 1], ["jr", 1], ["jalr", 2],
+    ["lb", 3], ["lh", 3], ["lw", 3], ["lbu", 3], ["lhu", 3],
+    ["sb", 3], ["sh", 3], ["sw", 3],
+    ["li", 2], ["la", 2], ["move", 2],
+    ["syscall", 0]
 ]);
 
 export const validAnnotations = new Set([".data", ".text"]);
@@ -224,41 +189,40 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
             const startColumn = (match ? match[0].length : 0) + 1;
             let position = startColumn;
 
-            if (!validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-                if (tokens[0].endsWith(":")) {
-                    labels.add(tokens[0].slice(0, -1));
+            const instr = tokens[0];
+
+            if (!validInstructions.has(instr) && !validAnnotations.has(instr)) {
+                if (instr.endsWith(":")) {
+                    labels.add(instr.slice(0, -1));
                     return;
                 }
-            }
-
-            if (!validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0]) && !tokens[0].startsWith("#")) {
                 errs.push({
                     startLineNumber: index + 1,
                     startColumn,
                     endLineNumber: index + 1,
-                    endColumn: position + tokens[0].length,
-                    message: `"${tokens[0]}" is not a valid MIPS instruction.`,
+                    endColumn: position + instr.length,
+                    message: `"${instr}" is not a valid MIPS instruction.`,
                     severity: monaco.MarkerSeverity.Error
                 });
             }
 
-            position += tokens[0].length + 1;
+            position += instr.length + 1;
 
             for (let i = 1; i < tokens.length; i++) {
-                const register = tokens[i].replace(/,/, "");
-                if (register.startsWith("#")) return;
-                if (!isNaN(register) && Number.isInteger(Number(register))) continue;
+                const token = tokens[i].replace(/,/, "");
+                if (token.startsWith("#")) return;
+                if (!isNaN(token) && Number.isInteger(Number(token))) continue;
 
                 const startPos = line.indexOf(tokens[i], position - 1) + 1;
                 const endPos = startPos + tokens[i].length;
 
-                if (!validRegisters.has(register) && !labels.has(register)) {
+                if (!validRegisters.has(token) && !labels.has(token)) {
                     errs.push({
                         startLineNumber: index + 1,
                         startColumn: startPos,
                         endLineNumber: index + 1,
                         endColumn: endPos,
-                        message: `"${register}" is not a valid MIPS Register or Label.`,
+                        message: `"${token}" is not a valid MIPS Register or Label.`,
                         severity: monaco.MarkerSeverity.Error
                     });
                 }
@@ -266,9 +230,34 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
             }
         });
 
+        lines.forEach((line, index) => {
+            const codePart = line.split("#")[0];
+            const tokens = codePart.trim().split(/\s+/);
+            const match = line.match(/^\s*/);
+            const startColumn = (match ? match[0].length : 0) + 1;
+
+            if (tokens.length > 0 && validInstructions.has(tokens[0])) {
+                const instr = tokens[0];
+                const expectedArgs = validInstructions.get(instr);
+                const actualArgs = tokens.length > 1 ? tokens.slice(1).filter(t => t !== ",").length : 0;
+
+                if (expectedArgs !== undefined && actualArgs < expectedArgs) {
+                    errs.push({
+                        startLineNumber: index + 1,
+                        startColumn,
+                        endLineNumber: index + 1,
+                        endColumn: startColumn + instr.length,
+                        message: `"${instr}" expects ${expectedArgs} argument(s), but got ${actualArgs}.`,
+                        severity: monaco.MarkerSeverity.Error
+                    });
+                }
+            }
+        });
+
         monaco.editor.setModelMarkers(model, "mips", errs);
         setErrors(errs);
     }
+
 
     function toggleBreakpoint(line) {
         setBreakpoints((prev) => {
