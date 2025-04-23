@@ -77,8 +77,9 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function Editor({fontSize, onPdfOpen, isDarkMode}) {
+function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
     const [docs, setDocs] = useState(getStoredDocs());
+    const [showFileMenu, setShowFileMenu] = useState(false);
     const [currentDoc, setCurrentDoc] = useState(0);
     const [output, setOutput] = useState('');
     const [registerValues, setRegisterValues] = useState(dummyRegisterValues);
@@ -97,6 +98,8 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
     const [errors, setErrors] = useState([]);
     const [breakpoints, setBreakpoints] = useState(new Set());
     const [currentLine, setCurrentLine] = useState(null);
+    // const [lineNumbersVisible, setLineNumbersVisible] = useState(true);
+    const editorRef = useRef(null);
     const coreRef = useRef(null); // new
     const [executionDelay, setExecutionDelay] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -112,6 +115,18 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
         isPausedRef.current = isPaused;
         isRunningRef.current = isRunning;
     }, [isPaused, isRunning]);
+
+    const editorDidMount = (editor) => {
+        editorRef.current = editor;
+    };
+
+    useEffect(() => {
+        if (editorRef.current) {
+            editorRef.current.updateOptions({
+                lineNumbers: showLineNumbers ? 'on' : 'off',
+            });
+        }
+    }, [showLineNumbers]);
 
     useEffect(() => {
         console.log('Data Dump', dataDump)
@@ -735,168 +750,171 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
             backgroundColor: isDarkMode ? "#121212" : "#ffffff",
             color: isDarkMode ? "#ffffff" : "#000000"
         }}>
+            {/* Top Bar */}
             <div style={{
                 background: isDarkMode ? '#333' : '#f5f5f5',
                 padding: '8px',
                 display: 'flex',
-                flexWrap: 'wrap',
-                flexShrink: 0
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap'
             }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {/* FILE Dropdown */}
+                    <div style={{ position: 'relative' }}>
+                        <button onClick={() => setShowFileMenu(prev => !prev)}>
+                            📁 File ▾
+                        </button>
+                        {showFileMenu && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                background: isDarkMode ? '#444' : '#fff',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                                zIndex: 1000,
+                                padding: '8px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px'
+                            }}>
+                                <button onClick={createDoc}>📄 New File</button>
+                                <button>
+                                    <label style={{
+                                        cursor: 'pointer',
+                                        display: 'block',
+                                        width: '100%'
+                                    }}>
+                                        ⬆️ Import .asm
+                                        <input type="file" accept=".asm" onChange={handleImport} style={{ display: 'none' }} />
+                                    </label>
+                                </button>
+                                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>⬇️ Download .asm</button>
+                                <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>⬇️ Download .data</button>
+                                <button onClick={() => handleDownload(textDump, "text_dump.txt")}>⬇️ Download .text</button>
+                            </div>
+                        )}
+                    </div>
 
-                <select name="example" id="example" style={{marginLeft: '4px'}} onChange={selectCodeExample}>
-                    <option value="" disabled selected hidden>Select a Code Example Here</option>
-                    <option value="hello_world">Hello World</option>
-                    <option value="add">Add Two Numbers</option>
-                </select>
+                    {/* Code Examples Dropdown */}
+                    <select name="example" id="example" onChange={selectCodeExample}>
+                        <option value="" disabled selected hidden>Select Example</option>
+                        <option value="hello_world">Hello World</option>
+                        <option value="add">Add Two Numbers</option>
+                    </select>
+                </div>
+
+                {/* Execution Speed */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label htmlFor="speedSlider">⚡ Speed:</label>
+                    <input
+                        id="speedSlider"
+                        type="range"
+                        min="0"
+                        max="1000"
+                        step="100"
+                        value={executionDelay}
+                        onChange={(e) => setExecutionDelay(Number(e.target.value))}
+                    />
+                    <span>{executionDelay} ms</span>
+                </div>
             </div>
 
+            {/* File Tabs */}
             <div style={{
                 background: isDarkMode ? '#333' : '#f5f5f5',
-                padding: '8px',
+                padding: '4px',
                 display: 'flex',
                 flexWrap: 'wrap',
-                flexShrink: 0
-            }}>
-                <button onClick={() => setCurrentTab('edit')}>Edit</button>
-                <button onClick={() => setCurrentTab('execute')}>Execute</button>
-            </div>
-
-            <div style={{
-                background: isDarkMode ? '#333' : '#f5f5f5',
-                padding: '8px',
-                display: 'flex',
-                flexWrap: 'wrap',
-                flexShrink: 0
+                gap: '4px'
             }}>
                 {docs.map((doc, i) => (
-                    <span key={i} style={{marginRight: '4px'}}>
+                    <div key={i} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        border: '1px solid #ccc',
+                        borderRadius: '12px',
+                        padding: '2px 6px',
+                        background: currentDoc === i ? (isDarkMode ? '#555' : '#ddd') : (isDarkMode ? '#222' : '#fff'),
+                        gap: '4px'
+                    }}>
                         {editingDoc === i ? (
                             <>
-                                <input value={docRename} onChange={e => setDocRename(e.target.value)}
-                                       style={{marginRight: '2px'}}/>
-                                <button onClick={commitRename}>OK</button>
-                                <button onClick={cancelRename}>Cancel</button>
+                                <input
+                                    value={docRename}
+                                    onChange={(e) => setDocRename(e.target.value)}
+                                    style={{ borderRadius: '4px', fontSize: '12px' }}
+                                />
+                                <button onClick={commitRename}>✔</button>
+                                <button onClick={cancelRename}>✖</button>
                             </>
                         ) : (
                             <>
                                 <button onClick={() => selectDoc(i)}>{doc.name}</button>
-                                <button onClick={() => removeDoc(i)}>x</button>
-                                <button onClick={() => initiateRename(i)}>Rename</button>
+                                <button onClick={() => initiateRename(i)}>✎</button>
+                                <button onClick={() => removeDoc(i)}>✖</button>
                             </>
                         )}
-                    </span>
+                    </div>
                 ))}
-                <button onClick={createDoc}>New File</button>
-                <button onClick={assembleCode} disabled={isRunning || isPaused}>
-                    Assemble
-                </button>
-                <button
-                    onClick={run}
-                    disabled={!assembledCode || executionFinished || isRunning || !runAllowed}
-                >
-                    Run
-                </button>
-                <button
-                    onClick={runToNextBreakpoint}
-                    disabled={!assembledCode || executionFinished || isRunning}
-                >
-                    Run to Breakpoint
-                </button>
-                <button
-                    onClick={() => {
-                        setIsPaused(true);
-                        isPausedRef.current = true;
-                    }}
-                    disabled={!isRunning || isPaused}
-                >
-                    Pause
-                </button>
-                <button
-                    onClick={() => {
-                        setIsPaused(false);
-                        isPausedRef.current = false;
-                    }}
-                    disabled={!isRunning || !isPaused}
-                >
-                    Resume
-                </button>
-                <button
-                    onClick={() => {
-                        setIsRunning(false);
-                        isRunningRef.current = false;
-
-                        setIsPaused(false);
-                        isPausedRef.current = false;
-
-                        setExecutionFinished(true);
-                        setRunAllowed(true);
-                    }}
-                    disabled={!isRunning}
-                >
-                    Stop
-                </button>
-
-                <button
-                    onClick={stepInstruction}
-                    disabled={!assembledCode || executionFinished || isRunning}
-                >
-                    Step
-                </button>
-                <button
-                    onClick={toggleAllBreakpoints}
-                    disabled={!assembledCode}
-                >
-                    {allBreakpointsEnabled ? 'Clear All Breakpoints' : 'Set All Breakpoints'}
-                </button>
-                <button>
-                    <label style={{cursor: 'pointer'}}>
-                        Import .asm
-                        <input type="file" accept=".asm" onChange={handleImport} style={{display: 'none'}}/>
-                    </label>
-                </button>
-                <button onClick={() => handleDownload(docs[currentDoc].content, `${docs[currentDoc].name}`)}>Download
-                    .asm
-                </button>
-                <button onClick={() => handleDownload(dataDump, "data_dump.txt")}>Download .data</button>
-                <button onClick={() => handleDownload(textDump, "text_dump.txt")}>Download .text</button>
-                <label htmlFor="speedSlider">Execution Speed: </label>
-                <input
-                    id="speedSlider"
-                    type="range"
-                    min="0"
-                    max="1000"
-                    step="100"
-                    value={executionDelay}
-                    onChange={(e) => setExecutionDelay(Number(e.target.value))}
-                />
-                <span>{executionDelay} ms</span>
             </div>
 
+            {/* Control Buttons */}
             <div style={{
-                flex: 1,
+                background: isDarkMode ? '#333' : '#f5f5f5',
+                padding: '8px',
                 display: 'flex',
-                flexDirection: 'row',
-                overflow: 'hidden'
+                gap: '12px',
+                flexWrap: 'wrap'
             }}>
-                <div style={{display: currentTab === 'edit' ? 'flex' : 'none', flex: editorWidth, minWidth: '0px'}}>
+                <button onClick={() => setCurrentTab('edit')}>✏️ Edit</button>
+                <button onClick={() => setCurrentTab('execute')}>▶️ Execute View</button>
+                <button onClick={assembleCode} disabled={isRunning || isPaused}>⚙️ Assemble</button>
+                <button onClick={run} disabled={!assembledCode || executionFinished || isRunning || !runAllowed}>▶️ Run</button>
+                <button onClick={stepInstruction} disabled={!assembledCode || executionFinished || isRunning}>⏭️ Step</button>
+                <button onClick={runToNextBreakpoint} disabled={!assembledCode || executionFinished || isRunning}>⏩ Run to BP</button>
+                <button onClick={() => { setIsPaused(true); isPausedRef.current = true; }} disabled={!isRunning || isPaused}>⏸️ Pause</button>
+                <button onClick={() => { setIsPaused(false); isPausedRef.current = false; }} disabled={!isRunning || !isPaused}>▶️ Resume</button>
+                <button onClick={() => {
+                    setIsRunning(false);
+                    isRunningRef.current = false;
+                    setIsPaused(false);
+                    isPausedRef.current = false;
+                    setExecutionFinished(true);
+                    setRunAllowed(true);
+                }} disabled={!isRunning}>⏹️ Stop</button>
+                <button onClick={toggleAllBreakpoints} disabled={!assembledCode}>
+                    {allBreakpointsEnabled ? "🚫 Clear BPs" : "🎯 Set BPs"}
+                </button>
+            </div>
+
+            {/* Main Area with Resizing */}
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                {/* Editor or Execution View */}
+                <div style={{ display: currentTab === 'edit' ? 'flex' : 'none', flex: editorWidth, minWidth: '0px' }}>
                     <MonacoEditor
                         height="100%"
-                        width='100%'
+                        width="100%"
                         language="mips"
                         theme={isDarkMode ? "vs-dark" : "vs-light"}
                         value={docs[currentDoc].content}
                         onChange={editorChange}
-                        options={{automaticLayout: true, fontSize: fontSize, minimap: {enabled: false}}}
+                        options={{ automaticLayout: true, lineNumbers: showLineNumbers ? 'on' : 'off', fontSize }}
                         onMount={editorMount}
                     />
                 </div>
+
                 <div style={{
                     display: currentTab === 'execute' ? 'flex' : 'none',
                     flex: editorWidth,
                     flexDirection: 'column',
                     minWidth: '0px'
                 }}>
-                    {assembledCode ? (<><p>Text Segment</p>
+                    {assembledCode ? (
+                        <>
+                            <p>Text Segment</p>
                             <TextSegmentDisplay
                                 textDump={textDump}
                                 breakpoints={breakpoints}
@@ -908,66 +926,59 @@ function Editor({fontSize, onPdfOpen, isDarkMode}) {
                                 Show as {showTextAscii ? 'Hex' : 'Instructions'}
                             </button>
                             <p>Data Segment</p>
-                            <DataSegmentDisplay
-                                dataDump={dataDump}
-                                showAscii={showDataAscii}
-                            />
+                            <DataSegmentDisplay dataDump={dataDump} showAscii={showDataAscii} />
                             <button onClick={() => setShowDataAscii(prev => !prev)}>
                                 Show as {showDataAscii ? 'Hex' : 'ASCII'}
                             </button>
-                        </>) :
-                        <p>Assemble your code to view text and data content.</p>}
+                        </>
+                    ) : (
+                        <p>Assemble your code to view text and data content.</p>
+                    )}
                 </div>
+
+                {/* Resizer */}
                 <div
-                    style={{
-                        width: '3px',
-                        cursor: 'col-resize',
-                        background: isDarkMode ? '#444' : '#ccc',
-                    }}
+                    style={{ width: '3px', cursor: 'col-resize', background: isDarkMode ? '#444' : '#ccc' }}
                     onMouseDown={handleEditorResize}
                 />
+
+                {/* Console & Registers */}
                 <div style={{
                     flex: 100 - editorWidth,
                     minWidth: '250px',
                     display: 'flex',
                     flexDirection: 'column',
-                    background: isDarkMode ? "#222" : "#f5f5f5",
-                    color: isDarkMode ? "white" : "black"
+                    background: isDarkMode ? "#222" : "#f5f5f5"
                 }}>
                     <div style={{
-                        background: isDarkMode ? 'black' : '#f5f5f5',
-                        color: isDarkMode ? 'white' : 'black',
                         padding: '8px',
                         fontFamily: 'monospace',
                         height: `${100 - registerDisplayHeight}%`,
-                        overflowY: 'auto'
+                        overflowY: 'auto',
+                        background: isDarkMode ? 'black' : '#f5f5f5'
                     }}>
-                        <h3 style={{margin: '0 0 8px 0'}}>Console Output:</h3>
-                        <pre style={{margin: 0}}>{output}</pre>
+                        <h3>Console Output:</h3>
+                        <pre>{output}</pre>
                     </div>
                     <div
                         onMouseDown={handleRegisterResize}
-                        style={{
-                            height: '3px',
-                            cursor: 'row-resize',
-                            background: isDarkMode ? '#444' : '#ccc',
-                        }}
+                        style={{ height: '3px', cursor: 'row-resize', background: isDarkMode ? '#444' : '#ccc' }}
                     />
                     <div style={{
-                        background: isDarkMode ? '#222' : '#ddd',
-                        color: isDarkMode ? 'white' : 'black',
                         padding: '8px',
                         flex: 1,
                         height: `${registerDisplayHeight}%`,
-                        overflowY: 'auto'
+                        overflowY: 'auto',
+                        background: isDarkMode ? '#222' : '#ddd'
                     }}>
-                        <h3 style={{margin: '0 0 8px 0'}}>Registers:</h3>
-                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters}/>
+                        <h3>Registers:</h3>
+                        <RegisterDisplay registerValues={registerValues} changedRegisters={changedRegisters} />
                     </div>
                 </div>
             </div>
         </div>
     );
+
 }
 
 export default Editor;
