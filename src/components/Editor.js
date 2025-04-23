@@ -170,100 +170,94 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
 
         const text = model.getValue();
         const lines = text.split("\n");
-        const errors = [];
+        const errs = [];
         labels.clear();
 
-        // gets all the labels first
-        lines.forEach((line, index) => {
+        lines.forEach((line) => {
             const tokens = line.trim().split(/\s+/);
-            if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-                if (tokens[0].endsWith(":")) {
-                    labels.add(tokens[0].slice(0, -1));
-                }
+            if (tokens.length && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
+                if (tokens[0].endsWith(":")) labels.add(tokens[0].slice(0, -1));
             }
         });
 
         lines.forEach((line, index) => {
-
             const trimmed = line.trim();
-            if (trimmed === "") return;
-            if (trimmed.startsWith("#")) return;
+            if (!trimmed || trimmed.startsWith("#")) return;
 
-            const tokens = line.trim().split(/\s+/);
+            const tokens = trimmed.split(/\s+/);
             const match = line.match(/^\s*/);
             const startColumn = (match ? match[0].length : 0) + 1;
             let position = startColumn;
 
-            if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-                if (tokens[0].endsWith(":")) {
-                    labels.add(tokens[0].slice(0, -1));
+            const instr = tokens[0];
+
+            if (!validInstructions.has(instr) && !validAnnotations.has(instr)) {
+                if (instr.endsWith(":")) {
+                    labels.add(instr.slice(0, -1));
                     return;
                 }
-            }
-            // checks the instruction names to see if their valid
-            if (tokens.length > 0 && !validInstructions.has(tokens[0]) && !validAnnotations.has(tokens[0])) {
-                if (tokens[0].startsWith("#")) return;
-                errors.push({
+                errs.push({
                     startLineNumber: index + 1,
-                    startColumn: startColumn,
+                    startColumn,
                     endLineNumber: index + 1,
-                    endColumn: position + tokens[0].length,
-                    message: `"${tokens[0]}" is not a valid MIPS instruction.`,
-                    severity: monaco.MarkerSeverity.Error,
+                    endColumn: position + instr.length,
+                    message: `"${instr}" is not a valid MIPS instruction.`,
+                    severity: monaco.MarkerSeverity.Error
                 });
             }
 
+            position += instr.length + 1;
 
-            // checks the registers to see if their valid
             for (let i = 1; i < tokens.length; i++) {
-                const register = tokens[i].replace(/,/, "");
-                if (register.startsWith("#")) return;
-                if (!isNaN(register) && Number.isInteger(Number(register))) continue;
+                const token = tokens[i].replace(/,/, "");
+                if (token.startsWith("#")) return;
+                if (!isNaN(token) && Number.isInteger(Number(token))) continue;
 
-                let startPos = line.indexOf(tokens[i], position - 1) + 1;
-                let endPos = startPos + tokens[i].length;
-                if (!validRegisters.has(register) && !labels.has(register)) {
-                    errors.push({
+                const startPos = line.indexOf(tokens[i], position - 1) + 1;
+                const endPos = startPos + tokens[i].length;
+
+                if (!validRegisters.has(token) && !labels.has(token)) {
+                    errs.push({
                         startLineNumber: index + 1,
                         startColumn: startPos,
                         endLineNumber: index + 1,
                         endColumn: endPos,
-                        message: `"${register}" is not a valid MIPS Register or Label.`,
-                        severity: monaco.MarkerSeverity.Error,
+                        message: `"${token}" is not a valid MIPS Register or Label.`,
+                        severity: monaco.MarkerSeverity.Error
                     });
                 }
                 position += tokens[i].length + 1;
             }
         });
 
-        // check arguments
         lines.forEach((line, index) => {
             const codePart = line.split("#")[0];
             const tokens = codePart.trim().split(/\s+/);
             const match = line.match(/^\s*/);
             const startColumn = (match ? match[0].length : 0) + 1;
+
             if (tokens.length > 0 && validInstructions.has(tokens[0])) {
                 const instr = tokens[0];
                 const expectedArgs = validInstructions.get(instr);
-                const actualArgs = tokens.slice(1);
+                const actualArgs = tokens.length > 1 ? tokens.slice(1).filter(t => t !== ",").length : 0;
 
-                if (expectedArgs !== undefined && actualArgs.length < expectedArgs) {
-                    errors.push({
+                if (expectedArgs !== undefined && actualArgs < expectedArgs) {
+                    errs.push({
                         startLineNumber: index + 1,
-                        startColumn: startColumn,
+                        startColumn,
                         endLineNumber: index + 1,
                         endColumn: startColumn + instr.length,
-                        message: `"${instr}" expects ${expectedArgs} argument(s), but got ${actualArgs.length}.`,
-                        severity: monaco.MarkerSeverity.Error,
+                        message: `"${instr}" expects ${expectedArgs} argument(s), but got ${actualArgs}.`,
+                        severity: monaco.MarkerSeverity.Error
                     });
                 }
             }
         });
 
-
-        monaco.editor.setModelMarkers(model, "mips", errors);
-        setErrors(errors);
+        monaco.editor.setModelMarkers(model, "mips", errs);
+        setErrors(errs);
     }
+
 
     function toggleBreakpoint(line) {
         setBreakpoints((prev) => {
