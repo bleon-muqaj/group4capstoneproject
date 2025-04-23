@@ -39,60 +39,6 @@ async function assemble(currentCode, currentFileName, setTextDump, setDataDump, 
     setOutput(`Assembly of ${currentFileName} was successful.\nYou can now run your code.\n`);
 }
 
-/*
-async function run(assembledCode, setRegisterValues, setOutput, setTextDump, setDataDump, prevRegisters, setChangedRegisters, executionDelay){
-    let consoleOutput = '';
-
-    let core = new Mips32Core();
-    core.load_text(assembledCode.text());
-    core.load_data(assembledCode.data());
-
-    const staticData = assembledCode.data();
-    let running = true;
-
-    while (running) {
-        const isSyscall = core.tick();
-        const regs = core.dump_registers();
-        const v0 = regs[2]; // $v0
-        const a0 = regs[4]; // $a0
-
-        if (isSyscall) {
-            if (v0 === 1) {
-                consoleOutput += a0.toString() + '\n';
-            } else if (v0 === 4) {
-                const offset = a0 - 0x10010000;
-                if (offset < 0 || offset >= staticData.length) {
-                    consoleOutput += '[Invalid address]\n';
-                } else {
-                    let str = '';
-                    for (let i = offset; i < staticData.length; i++) {
-                        const byte = staticData[i];
-                        if (byte === 0) break;
-                        str += String.fromCharCode(byte);
-                    }
-                    consoleOutput += str || '[Empty string]';
-                }
-            } else if (v0 === 10) {
-                consoleOutput += 'Exit\n';
-                running = false;
-                break;
-            } else {
-                consoleOutput += 'Unknown syscall\n';
-            }
-        }
-        if (executionDelay > 0) await sleep(executionDelay);
-    }
-
-    const newRegisters = [...core.dump_registers()];
-    setRegisterValues(prev => {
-        const changedRegisters = newRegisters.map((val, i) => val !== prev[i]);
-        setChangedRegisters(changedRegisters);
-        return newRegisters;
-    });
-    setOutput(consoleOutput);
-}*/
-
-
 const dummyRegisterValues = new Array(32).fill(0);
 dummyRegisterValues[28] = 268468224;
 dummyRegisterValues[29] = 2147479548;
@@ -162,6 +108,8 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
     const isRunningRef = useRef(isRunning);
     const [allBreakpointsEnabled, setAllBreakpointsEnabled] = useState(false);
     const [runAllowed, setRunAllowed] = useState(true);
+    const [editorWidth, setEditorWidth] = useState(70);
+    const [registerDisplayHeight, setRegisterDisplayHeight] = useState(70);
 
     useEffect(() => {
         isPausedRef.current = isPaused;
@@ -749,6 +697,49 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
         }
     }
 
+    // handle resizing of editor/code content displays
+    function handleEditorResize(e) {
+        e.preventDefault();
+        const beginX = e.clientX;
+        const beginWidth = editorWidth;
+
+        const onMouseMove = (moveEvent) => {
+            const deltaX = moveEvent.clientX - beginX;
+            const containerWidth = document.body.clientWidth;
+            const newWidth = ((beginWidth / 100) * containerWidth + deltaX) / containerWidth * 100;
+            setEditorWidth(Math.min(90, Math.max(40, newWidth)));
+        }
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        }
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    }
+
+    // handle resizing of console/register display height
+    function handleRegisterResize(e) {
+        e.preventDefault();
+        const beginY = e.clientY;
+        const containerHeight = document.body.clientHeight;
+        const beginHeight = registerDisplayHeight;
+
+        const onMouseMove = (moveEvent) => {
+            const deltaY = moveEvent.clientY - beginY;
+            const newHeight = ((beginHeight / 100) * containerHeight - deltaY) / containerHeight * 100;
+            setRegisterDisplayHeight(Math.min(90, Math.max(40, newHeight)));
+        };
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    }
 
     return (
         <div style={{
@@ -815,11 +806,23 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     </select>
                 </div>
 
-
-
+                {/* Execution Speed */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label htmlFor="speedSlider">⚡ Speed:</label>
+                    <input
+                        id="speedSlider"
+                        type="range"
+                        min="0"
+                        max="1000"
+                        step="100"
+                        value={executionDelay}
+                        onChange={(e) => setExecutionDelay(Number(e.target.value))}
+                    />
+                    <span>{executionDelay} ms</span>
+                </div>
             </div>
 
-            {/* FILE TABS */}
+            {/* File Tabs */}
             <div style={{
                 background: isDarkMode ? '#333' : '#f5f5f5',
                 padding: '4px',
@@ -858,7 +861,7 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 ))}
             </div>
 
-            {/* Edit & Execute Buttons */}
+            {/* Control Buttons */}
             <div style={{
                 background: isDarkMode ? '#333' : '#f5f5f5',
                 padding: '8px',
@@ -887,55 +890,61 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 </button>
             </div>
 
-            {/* Main Area */}
+            {/* Main Area with Resizing */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                {/* Editor */}
-                {currentTab === 'edit' && (
-                    <div style={{ flex: 3, minWidth: '0px' }}>
-                        <MonacoEditor
-                            height="100%"
-                            width="100%"
-                            language="mips"
-                            theme={isDarkMode ? "vs-dark" : "vs-light"}
-                            value={docs[currentDoc].content}
-                            onChange={editorChange}
-                            options={{ automaticLayout: true, lineNumbers: showLineNumbers ? 'on' : 'off', fontSize }}
-                            onMount={editorMount}
-                        />
-                    </div>
-                )}
+                {/* Editor or Execution View */}
+                <div style={{ display: currentTab === 'edit' ? 'flex' : 'none', flex: editorWidth, minWidth: '0px' }}>
+                    <MonacoEditor
+                        height="100%"
+                        width="100%"
+                        language="mips"
+                        theme={isDarkMode ? "vs-dark" : "vs-light"}
+                        value={docs[currentDoc].content}
+                        onChange={editorChange}
+                        options={{ automaticLayout: true, lineNumbers: showLineNumbers ? 'on' : 'off', fontSize }}
+                        onMount={editorMount}
+                    />
+                </div>
 
-                {/* Execution View */}
-                {currentTab === 'execute' && (
-                    <div style={{ flex: 3, flexDirection: 'column', display: 'flex', minWidth: '0px' }}>
-                        {assembledCode ? (
-                            <>
-                                <p>Text Segment</p>
-                                <TextSegmentDisplay
-                                    textDump={textDump}
-                                    breakpoints={breakpoints}
-                                    toggleBreakpoint={toggleBreakpoint}
-                                    currentLine={currentLine}
-                                    showAscii={showTextAscii}
-                                />
-                                <button onClick={() => setShowTextAscii(prev => !prev)}>
-                                    Show as {showTextAscii ? 'Hex' : 'Instructions'}
-                                </button>
-                                <p>Data Segment</p>
-                                <DataSegmentDisplay dataDump={dataDump} showAscii={showDataAscii} />
-                                <button onClick={() => setShowDataAscii(prev => !prev)}>
-                                    Show as {showDataAscii ? 'Hex' : 'ASCII'}
-                                </button>
-                            </>
-                        ) : (
-                            <p>Assemble your code to view text and data content.</p>
-                        )}
-                    </div>
-                )}
+                <div style={{
+                    display: currentTab === 'execute' ? 'flex' : 'none',
+                    flex: editorWidth,
+                    flexDirection: 'column',
+                    minWidth: '0px'
+                }}>
+                    {assembledCode ? (
+                        <>
+                            <p>Text Segment</p>
+                            <TextSegmentDisplay
+                                textDump={textDump}
+                                breakpoints={breakpoints}
+                                toggleBreakpoint={toggleBreakpoint}
+                                currentLine={currentLine}
+                                showAscii={showTextAscii}
+                            />
+                            <button onClick={() => setShowTextAscii(prev => !prev)}>
+                                Show as {showTextAscii ? 'Hex' : 'Instructions'}
+                            </button>
+                            <p>Data Segment</p>
+                            <DataSegmentDisplay dataDump={dataDump} showAscii={showDataAscii} />
+                            <button onClick={() => setShowDataAscii(prev => !prev)}>
+                                Show as {showDataAscii ? 'Hex' : 'ASCII'}
+                            </button>
+                        </>
+                    ) : (
+                        <p>Assemble your code to view text and data content.</p>
+                    )}
+                </div>
+
+                {/* Resizer */}
+                <div
+                    style={{ width: '3px', cursor: 'col-resize', background: isDarkMode ? '#444' : '#ccc' }}
+                    onMouseDown={handleEditorResize}
+                />
 
                 {/* Console & Registers */}
                 <div style={{
-                    flex: 1,
+                    flex: 100 - editorWidth,
                     minWidth: '250px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -944,16 +953,21 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                     <div style={{
                         padding: '8px',
                         fontFamily: 'monospace',
-                        height: '150px',
+                        height: `${100 - registerDisplayHeight}%`,
                         overflowY: 'auto',
                         background: isDarkMode ? 'black' : '#f5f5f5'
                     }}>
                         <h3>Console Output:</h3>
                         <pre>{output}</pre>
                     </div>
+                    <div
+                        onMouseDown={handleRegisterResize}
+                        style={{ height: '3px', cursor: 'row-resize', background: isDarkMode ? '#444' : '#ccc' }}
+                    />
                     <div style={{
                         padding: '8px',
                         flex: 1,
+                        height: `${registerDisplayHeight}%`,
                         overflowY: 'auto',
                         background: isDarkMode ? '#222' : '#ddd'
                     }}>
@@ -964,7 +978,6 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
             </div>
         </div>
     );
-
 
 }
 
