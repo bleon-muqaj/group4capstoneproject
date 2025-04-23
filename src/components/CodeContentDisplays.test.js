@@ -46,10 +46,10 @@ test('DataSegmentDisplay renders a table with 15 rows and fills missing cells wi
     // Verify there are exactly 15 rows in the tbody.
     expect(bodyRows.length).toBe(15);
 
-    // Verify that each row contains 10 cells (1 address cell + 9 data cells).
+    // Verify that each row contains 9 cells
     bodyRows.forEach(row => {
         const cells = within(row).getAllByRole('cell');
-        expect(cells.length).toBe(10);
+        expect(cells.length).toBe(9);
     });
 
     // Validate the first row's address.

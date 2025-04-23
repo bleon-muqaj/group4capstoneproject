@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from "react";
 import PDFViewer from "./PDFViewer";
 
-function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNumbers}) {
-    const [pdfOpen, setPdfOpen] = React.useState(false);
-
+function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNumbers }) {
+    const [pdfOpen, setPdfOpen] = useState(false);
     const chapters = [
         { title: "Table of Contents", page: 1 },
         { title: "Instructions", page: 3 },
@@ -55,74 +54,127 @@ function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNu
     const handleToggleLineNumbers = () => {
         const newValue = !showLineNumbers;
         setShowLineNumbers(newValue);
-        if (onToggleLineNumbers) {
-            onToggleLineNumbers(newValue);
-        }
+        if (onToggleLineNumbers) onToggleLineNumbers(newValue);
     };
 
-    return (
-        <header className="header" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 20px'
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div className="header-title">MIPS Simulator</div>
+    const [position, setPosition] = useState({ x: 100, y: 100 });
+    const [size, setSize] = useState({ width: 600, height: 400 });
+    const [dragging, setDragging] = useState(false);
+    const dragOffset = useRef({ x: 0, y: 0 });
 
+    function startDrag(e) {
+        setDragging(true);
+        document.body.style.userSelect = "none";
+        dragOffset.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    }
+
+    function handleDrag(e) {
+        if (dragging) {
+            setPosition({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
+        }
+    }
+
+    function stopDrag() {
+        setDragging(false);
+        document.body.style.userSelect = "";
+    }
+
+    return (
+        <header
+            className="header"
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px" }}
+        >
+            <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <div className="header-title">MIPS Simulator</div>
                 <button onClick={() => setPdfOpen(true)} className="open-manual-button">
                     View Manual
                 </button>
             </div>
-
-            {/* Settings Toggle Button */}
-            <button onClick={() => setShowSettings(prev => !prev)} style={{
-                padding: '6px 12px',
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: isDarkMode ? '#444' : '#ccc',
-                color: isDarkMode ? 'white' : 'black',
-                cursor: 'pointer'
-            }}>
+            {pdfOpen && (
+                <div
+                    style={{
+                        position: "fixed",
+                        top: `${position.y}px`,
+                        left: `${position.x}px`,
+                        width: `${size.width}px`,
+                        height: `${size.height}px`,
+                        minWidth: "500px",
+                        minHeight: "300px",
+                        border: "2px solid #888",
+                        backgroundColor: isDarkMode ? "#1e1e1e" : "#fff",
+                        zIndex: 1000,
+                        resize: "both",
+                        display: "flex",
+                        flexDirection: "column",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                        overflow: "auto"
+                    }}
+                    onMouseMove={handleDrag}
+                    onMouseUp={stopDrag}
+                >
+                    <div
+                        style={{ backgroundColor: isDarkMode ? "#333" : "#ddd", padding: "4px", cursor: "move", userSelect: "none" }}
+                        onMouseDown={startDrag}
+                    >
+                        <span>📄 MIPS Manual</span>
+                        <button onClick={() => setPdfOpen(false)} style={{ float: "right" }}>
+                            ❌
+                        </button>
+                    </div>
+                    <PDFViewer chapters={chapters} initialPage={1} isDarkMode={isDarkMode} />
+                </div>
+            )}
+            <button
+                onClick={() => setShowSettings((prev) => !prev)}
+                style={{
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    border: "none",
+                    backgroundColor: isDarkMode ? "#444" : "#ccc",
+                    color: isDarkMode ? "white" : "black",
+                    cursor: "pointer"
+                }}
+            >
                 ⚙️ Settings
             </button>
-
-            {/* Display Settings Pop-out */}
             {showSettings && (
-                <div style={{
-                    position: 'absolute',
-                    top: '60px',
-                    right: '20px',
-                    backgroundColor: isDarkMode ? '#2a2a2a' : '#e0e0e0',
-                    borderRadius: '6px',
-                    padding: '12px',
-                    zIndex: 100,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                }}>
-                    <div style={{ fontSize: '16px', marginBottom: '8px', color: isDarkMode ? 'white' : 'black' }}>
-                        Display Settings
-                    </div>
-
-                    <button onClick={toggleTheme} style={{
-                        backgroundColor: isDarkMode ? '#444' : '#ccc',
-                        color: isDarkMode ? 'white' : 'black',
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        marginBottom: '8px'
-                    }}>
-                        {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "60px",
+                        right: "20px",
+                        backgroundColor: isDarkMode ? "#2a2a2a" : "#e0e0e0",
+                        borderRadius: "6px",
+                        padding: "12px",
+                        zIndex: 100,
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.2)"
+                    }}
+                >
+                    <div style={{ fontSize: "16px", marginBottom: "8px", color: isDarkMode ? "white" : "black" }}>Display Settings</div>
+                    <button
+                        onClick={toggleTheme}
+                        style={{
+                            backgroundColor: isDarkMode ? "#444" : "#ccc",
+                            color: isDarkMode ? "white" : "black",
+                            border: "none",
+                            padding: "6px 12px",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            marginBottom: "8px"
+                        }}
+                    >
+                        {isDarkMode ? "Light Mode" : "Dark Mode"}
                     </button>
-
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '14px',
-                        color: isDarkMode ? 'white' : 'black',
-                        marginBottom: '8px'
-                    }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontSize: "14px",
+                            color: isDarkMode ? "white" : "black",
+                            marginBottom: "8px"
+                        }}
+                    >
                         <label htmlFor="fontSizeSlider">Font Size:</label>
                         <input
                             type="range"
@@ -130,39 +182,41 @@ function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNu
                             min="10"
                             max="30"
                             value={fontSize}
-                            onChange={(e) => setFontSize(parseInt(e.target.value))}
-                            style={{ width: '80px' }}
+                            onChange={(e) => setFontSize(parseInt(e.target.value, 10))}
+                            style={{ width: "80px" }}
                         />
                         <span>{fontSize}px</span>
                     </div>
-
-                    <button onClick={handleToggleLineNumbers} style={{
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        backgroundColor: isDarkMode ? '#444' : '#ccc',
-                        color: isDarkMode ? 'white' : 'black',
-                        cursor: 'pointer',
-                        marginBottom: '8px'
-                    }}>
-                        {showLineNumbers ? 'Hide Line Numbers' : 'Show Line Numbers'}
+                    <button
+                        onClick={handleToggleLineNumbers}
+                        style={{
+                            padding: "6px 12px",
+                            borderRadius: "4px",
+                            border: "none",
+                            backgroundColor: isDarkMode ? "#444" : "#ccc",
+                            color: isDarkMode ? "white" : "black",
+                            cursor: "pointer",
+                            marginBottom: "8px"
+                        }}
+                    >
+                        {showLineNumbers ? "Hide Line Numbers" : "Show Line Numbers"}
                     </button>
-
-                    <button onClick={() => setShowSettings(false)} style={{
-                        marginTop: '8px',
-                        padding: '4px 10px',
-                        backgroundColor: '#d9534f',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}>
+                    <button
+                        onClick={() => setShowSettings(false)}
+                        style={{
+                            marginTop: "8px",
+                            padding: "4px 10px",
+                            backgroundColor: "#d9534f",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer"
+                        }}
+                    >
                         Close
                     </button>
                 </div>
             )}
-
-            {pdfOpen && <PDFViewer chapters={chapters} initialPage={1} onClose={() => setPdfOpen(false)} />}
         </header>
     );
 }

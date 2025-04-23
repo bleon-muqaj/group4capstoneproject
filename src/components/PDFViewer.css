@@ -13,15 +13,9 @@
 
 .popup-with-the-side {
     display: flex;
-    width: 90%;
-    max-width: 1200px;
-    height: 90%;
-    background-color: #fff;
-    border-radius: 8px;
+    height: 100%;
     overflow: hidden;
-    position: relative;
 }
-
 .close-button {
     position: absolute;
     top: 10px;
@@ -46,6 +40,19 @@
 }
 
 
+.side {
+    background-color: #f0f0f0;
+    padding: 10px;
+}
+
+.main {
+    flex: 1;
+    overflow: auto;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+
 .side button {
     width: 100%;
     background: none;
@@ -57,17 +64,9 @@
     color: #007BFF;
 }
 
-.main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-}
-
 .pdf-box {
-    flex: 1;
-    overflow: auto;
-    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
 }
 
 .pdf-control {
