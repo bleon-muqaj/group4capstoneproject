@@ -109,14 +109,6 @@ function getStoredDocs() {
     return [{name: 'Untitled.asm', content: '.data\n\n.text\n'}];
 }
 
-// const validInstructions = new Set([
-//     "add", "addu", "sub", "subu", "and", "or", "xor", "nor", "slt", "sltu",
-//     "addi", "addiu", "andi", "ori", "xori", "lui", "sll", "srl", "sra",
-//     "sllv", "srlv", "srav", "beq", "bne", "blez", "bgtz", "bltz", "bgez",
-//     "j", "jal", "jr", "jalr", "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw",
-//     "li", "la", "move", "syscall"
-// ]);
-
 const validInstructions = new Map([
     ["add", 3], ["addu", 3], ["sub", 3], ["subu", 3], ["and", 3], ["or", 3], ["xor", 3], ["nor", 3], ["slt", 3], ["sltu", 3],
     ["addi", 3], ["addiu", 3], ["andi", 3], ["ori", 3], ["xori", 3], ["lui", 2],
@@ -258,7 +250,6 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 });
             }
 
-            // position += tokens[0].length + 1;
 
             // checks the registers to see if their valid
             for (let i = 1; i < tokens.length; i++) {
@@ -292,8 +283,6 @@ function Editor({ fontSize, onPdfOpen, isDarkMode, showLineNumbers = true }) {
                 const instr = tokens[0];
                 const expectedArgs = validInstructions.get(instr);
                 const actualArgs = tokens.slice(1);
-                // console.log(actualArgs)
-                // console.log(expectedArgs)
 
                 if (expectedArgs !== undefined && actualArgs.length < expectedArgs) {
                     errors.push({
