@@ -139,6 +139,19 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
     const [editorWidth, setEditorWidth] = useState(70);
     const [registerDisplayHeight, setRegisterDisplayHeight] = useState(70);
     const [isDragging, setIsDragging] = useState(false);
+    // BUTTON DROPDOWN
+    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, docIndex: null });
+    // FILE BUTTON DROPDOWN USE EFFECT
+    useEffect(() => {
+        const handleClick = () => {
+            if (contextMenu.visible) {
+                setContextMenu((prev) => ({ ...prev, visible: false }));
+            }
+        };
+        window.addEventListener("click", handleClick);
+        return () => window.removeEventListener("click", handleClick);
+    }, [contextMenu.visible]);
+
 
     useEffect(() => {
         isPausedRef.current = isPaused;
@@ -853,6 +866,7 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
                     gap: "4px"
                 }}
             >
+                {/*delete/rename buttons START*/}
                 {docs.map((doc, i) => (
                     <div
                         key={i}
@@ -863,25 +877,103 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
                             borderRadius: "12px",
                             padding: "2px 6px",
                             background: currentDoc === i ? (isDarkMode ? "#555" : "#ddd") : isDarkMode ? "#222" : "#fff",
-                            gap: "4px"
+                            gap: "4px",
+                            position: "relative",
+                        }}
+                        onContextMenu={(e) => {
+                            e.preventDefault();
+                            setContextMenu({
+                                visible: true,
+                                x: e.pageX,
+                                y: e.pageY,
+                                docIndex: i,
+                            });
                         }}
                     >
                         {editingDoc === i ? (
                             <>
-                                <input value={docRename} onChange={(e) => setDocRename(e.target.value)}
-                                       style={{borderRadius: "4px", fontSize: "12px"}}/>
+                                <input
+                                    value={docRename}
+                                    onChange={(e) => setDocRename(e.target.value)}
+                                    style={{ borderRadius: "4px", fontSize: "12px" }}
+                                />
                                 <button onClick={commitRename}>✔</button>
                                 <button onClick={cancelRename}>✖</button>
                             </>
                         ) : (
-                            <>
-                                <button onClick={() => selectDoc(i)}>{doc.name}</button>
-                                <button onClick={() => initiateRename(i)}>✎</button>
-                                <button onClick={() => removeDoc(i)}>✖</button>
-                            </>
+                            <button onClick={() => selectDoc(i)}>{doc.name}</button>
                         )}
                     </div>
                 ))}
+            {/*file deleet/rename END*/}
+
+            {/*    CONTEXT MENU START*/}
+                {contextMenu.visible && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: contextMenu.y,
+                            left: contextMenu.x,
+                            background: isDarkMode ? "#444" : "#fff",
+                            border: "1px solid #ccc",
+                            borderRadius: "6px",
+                            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                            zIndex: 1000,
+                            padding: "4px 10px",
+                            width: "fit-content",
+                            minWidth: "60px",
+                            boxSizing: "border-box",
+                        }}
+                        onClick={() => setContextMenu({ ...contextMenu, visible: false })}
+                    >
+                        <button
+                            onClick={() => {
+                                initiateRename(contextMenu.docIndex);
+                                setContextMenu({ ...contextMenu, visible: false });
+                            }}
+                            style={{
+                                padding: "6px 6px",
+                                textAlign: "left",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                width: "100%",
+                                color: isDarkMode ? "#ddd" : "#222",
+                                fontSize: "13px",
+                                borderRadius: "4px",
+                                boxSizing: "border-box",
+                            }}
+                            onMouseEnter={(e) => (e.target.style.background = isDarkMode ? "#555" : "#eee")}
+                            onMouseLeave={(e) => (e.target.style.background = "none")}
+                        >
+                            ✎ Rename
+                        </button>
+                        <button
+                            onClick={() => {
+                                removeDoc(contextMenu.docIndex);
+                                setContextMenu({ ...contextMenu, visible: false });
+                            }}
+                            style={{
+                                padding: "6px 8px", // Even padding for both buttons
+                                textAlign: "left",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                width: "100%",
+                                color: isDarkMode ? "#faa" : "#a00",
+                                fontSize: "13px",
+                                borderRadius: "4px",
+                                boxSizing: "border-box",
+                            }}
+                            onMouseEnter={(e) => (e.target.style.background = isDarkMode ? "#661111" : "#ffe6e6")}
+                            onMouseLeave={(e) => (e.target.style.background = "none")}
+                        >
+                            ✖ Delete
+                        </button>
+                    </div>
+                )}
+
+                {/*    context MENU (BUTTON DROPDOWN) END^^*/}
             </div>
             <div
                 style={{
