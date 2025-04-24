@@ -347,7 +347,7 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
                 return newRegisters;
             });
 
-            if (executionDelay > 0) await sleep(executionDelay);
+            if (executionDelay < 10) await sleep(111*(10-executionDelay));
             requestAnimationFrame(step);
         };
 
@@ -419,7 +419,7 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
                 return newRegisters;
             });
 
-            if (executionDelay > 0) await sleep(executionDelay);
+            if (executionDelay < 10) await sleep(111*(10-executionDelay));
             requestAnimationFrame(step);
         };
 
@@ -850,11 +850,12 @@ function Editor({fontSize, onPdfOpen, isDarkMode, showLineNumbers = true}) {
                         <option value="add">Add Two Numbers</option>
                     </select>
                 </div>
-                <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
-                    <label htmlFor="speedSlider">⚡ Speed:</label>
-                    <input id="speedSlider" type="range" min="0" max="1000" step="100" value={executionDelay}
+                <div style={{display: "flex", alignItems: "center", gap: "6px"}}>
+                    <label htmlFor="speedSlider">Execution Speed:</label>
+                    <input id="speedSlider" type="range" min="1" max="10" step="1" value={executionDelay}
+                           style={{ width: "70px" }}
                            onChange={(e) => setExecutionDelay(Number(e.target.value))}/>
-                    <span>{executionDelay} ms</span>
+                    <span>{executionDelay} </span>
                 </div>
             </div>
             <div
