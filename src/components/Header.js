@@ -1,8 +1,7 @@
 import React, { useState, useRef } from "react";
 import PDFViewer from "./PDFViewer";
 
-function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNumbers }) {
-    const [pdfOpen, setPdfOpen] = useState(false);
+function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNumbers, isPdfOpen, setIsPdfOpen, lastViewedPage }) {
     const chapters = [
         { title: "Table of Contents", page: 1 },
         { title: "Instructions", page: 3 },
@@ -86,11 +85,12 @@ function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNu
         >
             <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
                 <div className="header-title">MIPS Simulator</div>
-                <button onClick={() => setPdfOpen(true)} className="open-manual-button">
+                <button onClick={() => setIsPdfOpen(true)} className="open-manual-button">
                     View Manual
                 </button>
+
             </div>
-            {pdfOpen && (
+            {isPdfOpen && (
                 <div
                     style={{
                         position: "fixed",
@@ -117,11 +117,11 @@ function Header({ toggleTheme, isDarkMode, fontSize, setFontSize, onToggleLineNu
                         onMouseDown={startDrag}
                     >
                         <span>📄 MIPS Manual</span>
-                        <button onClick={() => setPdfOpen(false)} style={{ float: "right" }}>
+                        <button onClick={() => setIsPdfOpen(false)} style={{ float: "right" }}>
                             ❌
                         </button>
                     </div>
-                    <PDFViewer chapters={chapters} initialPage={1} isDarkMode={isDarkMode} />
+                    <PDFViewer chapters={chapters} initialPage={lastViewedPage} isDarkMode={isDarkMode} />
                 </div>
             )}
             <button

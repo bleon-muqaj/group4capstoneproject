@@ -33,6 +33,9 @@ function App() {
                 fontSize={fontSize}
                 setFontSize={setFontSize}
                 onToggleLineNumbers={setShowLineNumbers}
+                isPdfOpen={isPdfOpen}
+                setIsPdfOpen={setIsPdfOpen}
+                lastViewedPage={lastViewedPage}
             />
             <Editor
                 fontSize={fontSize}
@@ -42,13 +45,6 @@ function App() {
                 }}
                 isDarkMode={isDarkMode} showLineNumbers={showLineNumbers}
             />
-            {isPdfOpen && (
-                <PDFViewer
-                    onClose={() => setIsPdfOpen(false)}
-                    initialPage={lastViewedPage}
-                    onPageChange={setLastViewedPage}
-                />
-            )}
         </div>
     );
 }
