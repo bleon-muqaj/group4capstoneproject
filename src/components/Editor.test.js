@@ -142,40 +142,76 @@ test('Test 9: Clicking delete removes a file if more than one exists', () => {
     render(<Editor />);
     fireEvent.click(getButton('File'));
     fireEvent.click(getButton('New File'));
-    const deleteButtons = screen.getAllByText('✖');
-    fireEvent.click(deleteButtons[0]);
-    expect(screen.getAllByText(/\.asm/).length).toBeGreaterThan(0);
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const deleteButton = document.querySelector('div[style*="position: absolute"] button:nth-child(2)');
+    fireEvent.click(deleteButton);
+
+    const remainingFiles = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    expect(remainingFiles.length).toBeGreaterThan(0);
 });
+
 
 test('Test 10: Deleting the only file resets to default', () => {
     render(<Editor />);
-    fireEvent.click(screen.getByText('✖'));
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const deleteButton = document.querySelector('div[style*="position: absolute"] button:nth-child(2)');
+    fireEvent.click(deleteButton);
+
     expect(screen.getByText('Untitled.asm')).toBeInTheDocument();
 });
 
 test('Test 11: Clicking "Rename" displays rename input', () => {
     render(<Editor />);
-    fireEvent.click(screen.getByText('✎'));
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const renameButton = document.querySelector('div[style*="position: absolute"] button:nth-child(1)');
+    fireEvent.click(renameButton);
+
     expect(screen.getByDisplayValue('Untitled.asm')).toBeInTheDocument();
 });
 
+
 test('Test 12: Committing rename updates the file name', () => {
     render(<Editor />);
-    fireEvent.click(screen.getByText('✎'));
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const renameButton = document.querySelector('div[style*="position: absolute"] button:nth-child(1)');
+    fireEvent.click(renameButton);
+
     const renameInput = screen.getByDisplayValue('Untitled.asm');
     fireEvent.change(renameInput, { target: { value: 'NewName.asm' } });
     fireEvent.click(screen.getByText('✔'));
+
     expect(screen.getByText('NewName.asm')).toBeInTheDocument();
 });
 
+
 test('Test 13: Canceling rename leaves the file name unchanged', () => {
     render(<Editor />);
-    fireEvent.click(screen.getByText('✎'));
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const renameButton = document.querySelector('div[style*="position: absolute"] button:nth-child(1)');
+    fireEvent.click(renameButton);
+
     const renameInput = screen.getByDisplayValue('Untitled.asm');
     fireEvent.change(renameInput, { target: { value: 'Changed.asm' } });
     fireEvent.click(screen.getByText('✖'));
+
     expect(screen.getByText('Untitled.asm')).toBeInTheDocument();
 });
+
 
 test('Test 14: Editing the file updates its content', () => {
     render(<Editor />);
@@ -361,10 +397,17 @@ test('Test 37: After deleting a file, at least one file exists', () => {
     render(<Editor />);
     fireEvent.click(getButton('File'));
     fireEvent.click(getButton('New File'));
-    const deleteButtons = screen.getAllByText('✖');
-    fireEvent.click(deleteButtons[0]);
-    expect(screen.getAllByText(/\.asm/).length).toBeGreaterThan(0);
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const deleteButton = document.querySelector('div[style*="position: absolute"] button:nth-child(2)');
+    fireEvent.click(deleteButton);
+
+    const remainingFiles = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    expect(remainingFiles.length).toBeGreaterThan(0);
 });
+
 
 test('Test 38: After deleting a file, default file exists', () => {
     render(<Editor />);
@@ -377,17 +420,33 @@ test('Test 38: After deleting a file, default file exists', () => {
 
 test('Test 39: Clicking "Rename" updates file name input value', () => {
     render(<Editor />);
-    fireEvent.click(screen.getByText('✎'));
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const renameButton = document.querySelector('div[style*="position: absolute"] button:nth-child(1)');
+    fireEvent.click(renameButton);
+
     const renameInput = screen.getByDisplayValue('Untitled.asm');
     fireEvent.change(renameInput, { target: { value: 'Temp.asm' } });
+
     expect(renameInput.value).toBe('Temp.asm');
 });
 
+
 test('Test 40: Clicking "Cancel" after rename reverts to original file name', () => {
     render(<Editor />);
-    fireEvent.click(screen.getByText('✎'));
+
+    const fileTabs = screen.getAllByText(/\.asm/).filter(btn => btn.tagName === 'BUTTON');
+    fireEvent.contextMenu(fileTabs[0]);
+
+    const renameButton = document.querySelector('div[style*="position: absolute"] button:nth-child(1)');
+    fireEvent.click(renameButton);
+
     const renameInput = screen.getByDisplayValue('Untitled.asm');
     fireEvent.change(renameInput, { target: { value: 'ShouldNotChange.asm' } });
     fireEvent.click(screen.getByText('✖'));
+
     expect(screen.getByText('Untitled.asm')).toBeInTheDocument();
 });
+

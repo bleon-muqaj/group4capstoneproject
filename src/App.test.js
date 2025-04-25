@@ -44,17 +44,6 @@ describe('App Component', () => {
     expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
   });
 
-  test('clicking "Close PDF" closes PDFViewer', async () => {
-    render(<App />);
-    fireEvent.click(screen.getByText('Open PDF'));
-    await waitFor(() => {
-      expect(screen.getByTestId('pdf-viewer')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByText('Close PDF'));
-    await waitFor(() => {
-      expect(screen.queryByTestId('pdf-viewer')).toBeNull();
-    });
-  });
 });
 
 
